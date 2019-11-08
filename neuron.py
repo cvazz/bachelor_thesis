@@ -18,65 +18,32 @@ import time
 import mathsim as msim
 
 
-"""
-older Connection Matrix Creator (28/10)
+should_plotLoc_print2console_GLOBAL = 1
 
-@param1     sizeM   : Contains size of exhib and inhib
-@param2     jVal    : Contains nonzero Values for Matrix
-@param3     K       : Number of connections with inhib/exhib
+def createjCon(sizeM, jVal,K):
+    """
+    Current Connection Matrix Creator (31/10)
 
-@return     jCon    : Connection Matrix
-"""
+    Only working for 
+
+    @param1     sizeM   : Contains size of exhib and inhib
+    @param2     jVal    : Contains nonzero Values for Matrix
+    @param3     K       : Number of connections with inhib/exhib
+
+    @return     jCon    : Connection Matrix
+    """
+    if sizeM[0] != sizeM[1]:
+        raise ValueError("probability assumes equal likelihood of being excitatory or inhibitory")
+
+    debug       = 0
+    sizeMax     = sizeM[0] + sizeM[1]
+
+    oddsBeingOne= 2*K/sizeMax
+    jCon        = np.random.binomial(1, oddsBeingOne, sizeMax**2)
 
 
-def createjCon2(sizeM, jVal,K):
-    sizeMax = sizeM[0] + sizeM[1]
-    jCon = np.zeros((sizeMax,sizeMax))
-    for index in np.ndindex(np.shape(jCon)):
-        if index[0] < sizeM[0]:
-            if index[1] <sizeM[0]:
-                if random.uniform(0,1)<K/sizeM[0]:
-                    jCon[index] = jVal[0,0]
-            else:
-                if random.uniform(0,1)<K/sizeM[1]:
-                    jCon[index] = jVal[0,1]
-        else:
-            if index[1] <sizeM[0]:
-                if random.uniform(0,1)<K/sizeM[0]:
-                    jCon[index] = jVal[1,0]
-            else:
-                if random.uniform(0,1)<K/sizeM[1]:
-                    jCon[index] = jVal[1,1]
-    print("Save to File to decrease runtimes")
-    print("Try with np.random.bernoulli ")
-    return jCon
-
-"""
-Current Connection Matrix Creator (31/10)
-
-creates ordered list of just ones and then just zeros. This is then shuffled by using sample(len(obj)) with obj being the object to shuffle
-
-@param1     sizeM   : Contains size of exhib and inhib
-@param2     jVal    : Contains nonzero Values for Matrix
-@param3     K       : Number of connections with inhib/exhib
-
-@return     jCon    : Connection Matrix
-"""
-def createjCon3(sizeM, jVal,K):
-    debug = 0
-    np.set_printoptions(edgeitems = 5)
-    sizeMax = sizeM[0] + sizeM[1]
-    #distribute Connections
-    ones = int(2*K*sizeMax)
-    if debug: print(ones)
-    jCon = [0] * (sizeMax**2 -ones) + [1] * ones 
-    if debug: print(np.array(jCon))
-    jCon = random.sample(jCon,len(jCon))
-    if debug: print(np.array(jCon))
-
-    #shuffle
-    jCon = np.array(jCon, dtype = float)
-    jCon.shape = (sizeMax,sizeMax)
+    jCon.dtype  = float
+    jCon.shape  = (sizeMax,sizeMax)
 
     #add weights
     jCon[:sizeM[0],:sizeM[0]] = np.multiply(jCon[:sizeM[0],:sizeM[0]],jVal[0,0])
@@ -166,23 +133,23 @@ def timestepMat (iter, nval, jCon, thresh, external, fire):
     return sum + external[iter] - thresh[iter]
 
 def timestepMatRecord(iter, nval, jCon, thresh, external, fire,sizeM):
-"""
-Current Calculator for whether one neuron changes value or not(31/10)
+    """
+    Current Calculator for whether one neuron changes value or not(31/10)
 
-Particularity: Records additional information ie positive and negative input 
-Sums all the input with corresponding weights. 
-Afterwords adds external input and subtracts threshold. 
-Result is plugged in Heaviside function
+    Particularity: Records additional information ie positive and negative input 
+    Sums all the input with corresponding weights. 
+    Afterwords adds external input and subtracts threshold. 
+    Result is plugged in Heaviside function
 
-@param      iter    : iterator, determines which neuron is to be changed
-@param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
-@param      jCon    : Connection Matrix 
-@param      thresh  : Stores Thresholds 
-@param      external: Input from external Neurons 
-@param      fire    : records how often a neuron switches to active state 
+    @param      iter    : iterator, determines which neuron is to be changed
+    @param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
+    @param      jCon    : Connection Matrix 
+    @param      thresh  : Stores Thresholds 
+    @param      external: Input from external Neurons 
+    @param      fire    : records how often a neuron switches to active state 
 
-@return         : returns positive input from other neurons, all input (-threshold) and negative input
-"""
+    @return         : returns positive input from other neurons, all input (-threshold) and negative input
+    """
     debug = 0
 
     pos = jCon[iter,:sizeM[0]].dot(nval[:sizeM[0]])
@@ -402,9 +369,9 @@ def jConTinker(sizeM, jVal,K):
         if loc.exists():
             jCon = createjConFromFile(loc)
         else:
-            jCon = createjCon3(sizeM, jVal,K)
+            jCon = createjCon(sizeM, jVal,K)
     else:
-        jCon = createjCon3(sizeM, jVal,K)
+        jCon = createjCon(sizeM, jVal,K)
     if 'loc' in locals():
         if not loc.exists():
             np.save(loc, jCon)
@@ -430,6 +397,9 @@ def checkFolder(foldername):
 
 def relMax(fire,showRange):
     return np.argpartition(fire, -1*showRange)[-1*showRange:]
+def plotMessage(fullname):
+    if should_plotLoc_print2console_GLOBAL:
+        print("plotted and saved at: " + fullname)
 """
 plots distribution of firing pattern in relation to mean firing pattern
 
@@ -465,6 +435,7 @@ def plotTotal(foldername, total, fire, timer, titletxt, captiontxt):
     name = "density"
     fullname = testthename(folder +name+titletxt , "png")
     plt.savefig(fullname)
+    plotMessage(fullname)
     #plt.show()
     plt.close(fig)
     
@@ -482,6 +453,7 @@ def plotTotal(foldername, total, fire, timer, titletxt, captiontxt):
     name = "histogram"
     fullname = testthename(folder +name+titletxt , "png")
     plt.savefig(fullname)
+    plotMessage(fullname)
     #plt.show()
     plt.close(histfig)
 
@@ -519,6 +491,7 @@ def plotIndi(foldername, recorder, fire, threshM, titletxt, captiontxt):
     name = "Indi"
     fullname = testthename(folder +name+titletxt , "png")
     plt.savefig(fullname)
+    plotMessage(fullname)
     #plt.show()
     plt.close(fig)
 
@@ -561,6 +534,7 @@ def plotIndiAlt(foldername, recorder, fire, threshM, titletxt, captiontxt):
         name = "Indi"
         fullname = testthename(folder +name+titletxt , "png")
         plt.savefig(fullname)
+        plotMessage(fullname)
         #plt.show()
         plt.close(fig)
 def plotIndiExtended(foldername, recorder, fire, threshM, titletxt, captiontxt):
@@ -595,6 +569,7 @@ def plotIndiExtended(foldername, recorder, fire, threshM, titletxt, captiontxt):
     name = "IndiExt"
     fullname = testthename(folder +name+titletxt , "png")
     plt.savefig(fullname)
+    plotMessage(fullname)
     #plt.show()
 
 def plottau(foldername, recordEverything, timer, titletxt, captiontxt):
@@ -619,6 +594,7 @@ def plottau(foldername, recordEverything, timer, titletxt, captiontxt):
     name = "intervalHist"
     fullname = testthename(folder +name+titletxt , "png")
     plt.savefig(fullname)
+    plotMessage(fullname)
     #plt.show()
     plt.close(histfig)
 
@@ -667,6 +643,7 @@ def plottau2(foldername, recordEverything, timer, titletxt, captiontxt):
     name = "intervalHist2"
     fullname = testthename(folder +name+titletxt , "png")
     plt.savefig(fullname)
+    plotMessage(fullname)
     #plt.show()
     plt.close(histfig)
 
@@ -687,6 +664,7 @@ def plotDots(foldername, recordEverything, timer, titletxt, captiontxt):
     name = "dots"
     fullname = testthename(folder +name+titletxt , "png")
     plt.savefig(fullname)
+    plotMessage(fullname)
     #plt.show()
     plt.close(fig)
 
@@ -757,8 +735,8 @@ def testRoutine(foldername, timer, K, mean0, tau, sizeM,threshM, extM,
     recNum = 1000
     print("run")
     timestart = time.time()
-    #recorder, total, fire, recordEverything = sequRun(jCon, thresh, external, timer ,sizeM, extM, K, mean0, recNum)
-    recorder,total, fire, recordEverything= poissRun(jCon, thresh, external, timer, sizeM, extM, K, mean0, tau)
+    recorder, total, fire, recordEverything = sequRun(jCon, thresh, external, timer ,sizeM, extM, K, mean0, recNum)
+    #recorder,total, fire, recordEverything= poissRun(jCon, thresh, external, timer, sizeM, extM, K, mean0, tau)
     timeend = time.time()
     print("runtime of routine")
     timeOut(timeend - timestart)
@@ -780,18 +758,7 @@ def testRoutine(foldername, timer, K, mean0, tau, sizeM,threshM, extM,
         plottau2(foldername, recordEverything, timer, titletxt, captiontxt)
     plotDots(foldername, recordEverything, timer, titletxt, captiontxt)
 
-
-
-
-def main():
-    timestr = time.strftime("%y%m%d_%H%M")
-    foldername = "figs/testreihe" + timestr
-    """
-    folderpath = Path(foldername)
-    if not folderpath.exists():
-        folderpath.mkdir()
-    foldername +=  "/"
-    """    
+def parameters():
     timer   = 200
     sizeE   = 10000
     sizeI   = 10000
@@ -804,18 +771,24 @@ def main():
     tau     = 0.9
     mean0   = 0.1
     K       = 1000
-
     ### Deviations ###
-    size    = 100
+    timer   = 10
+    K       = 100
+    size    = 1000
     sizeE   = size
     sizeI   = size
-    K       = 100
-    mean0   = 0.1
+
+    return timer, sizeE, sizeI, extE, extI, jE, jI, threshE, threshI, tau, mean0, K 
+
+def main():
+    timestr = time.strftime("%y%m%d_%H%M")
+    foldername = "figs/testreihe_" + timestr
+    timer, sizeE, sizeI, extE, extI, jE, jI, threshE, threshI, tau, mean0, K = parameters()
 
     #backup_correctparameters()
     #troubleshootParamters()
 
-    #Bools for Wh
+    #Bools for if should be plotted or not
     pTot    = 1
     pIndi   = 0
     pIndiExt= 1
@@ -823,7 +796,6 @@ def main():
     pDist2  = 1
     pDots   = 1
     
-    print("np.binomial(size) -> shape -> fertig")
     print("permutation")
     print("Ergebnisse abspeichern und danach plotten")
     print("What exactly is Poisson statistics and process")
@@ -832,7 +804,6 @@ def main():
     sizeM, threshM, extM, jCon, thresh, external = prepare(
         K, mean0, tau, sizeE, sizeI, extE, extI, jE, jI,
         threshE, threshI)
-
     testRoutine(
         foldername, timer, K, mean0, tau, sizeM, threshM, extM,
         jCon, thresh, external,jE, jI, extratxt,
