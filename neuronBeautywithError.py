@@ -29,6 +29,7 @@ def createjConFromFile(filename):
     jCon = np.load(filename)
     return jCon
 
+
 def jConTinker(sizeM, jVal,K):
     """
     Utility Function: To save runtimes during testing, connection matrices are saved and reloaded if specificatinos match
@@ -37,7 +38,9 @@ def jConTinker(sizeM, jVal,K):
     folderCon =  Path("jCon_Repository")
     if not folderCon.exists():
         folderCon.mkdir()
-    if sizeM[0] == 10000:
+    if 1:
+        pass
+    elif sizeM[0] == 10000:
         loc = folderCon /'test10up5.npy'
     elif sizeM[0] == 1000:
         loc = folderCon /'test10up4.npy'
@@ -169,11 +172,10 @@ def plotTotal(figfolder, total_times_one, fireCount, timer, titletxt, captiontxt
     meanTot = np.mean(total_times_one)
     if meanTot == 0:
         print("not a single flip for the following starting values")
-        txt = f'Network Size: {sizeMax} \t K: {K} \t mean_0: {mean0} \n total_times_one time: {timer}   jE: {jE}\t jI: {jI}\t '
+        txt = f'Network Size: {sizeMax} \t K: {K} \t mean_0: {mean0} \n total time: {timer}   jE: {jE}\t jI: {jI}\t '
         print(txt)
         return 
     total_times_one = total_times_one/meanTot
-    #total_times_fired2 = [6 if tot>5 else tot for tot in total_times_one ]
     density = gaussian_kde(total_times_one)
     xs = np.linspace(0,3)
     density.covariance_factor = lambda : .1
@@ -348,9 +350,9 @@ def plotDots(figfolder, nval_over_time, timer, titletxt, captiontxt):
     ax = fig.add_subplot(111)
     record =np.transpose(nval_over_time)
     ax.imshow(record, aspect='auto', cmap='Greys', interpolation='nearest')
-    plt.title('Histogram of Fire Intervals V2')
-    plt.xlabel('time between firing two times')
-    plt.ylabel('density')
+    plt.title('Neurons firing over time')
+    plt.xlabel('time')
+    plt.ylabel('neurons')
     fig.text(.5,.05,captiontxt, ha='center')
     fig.subplots_adjust(bottom=0.2)
 
@@ -387,7 +389,7 @@ def createjCon(sizeM, jVal,K):
     jCon        = np.random.binomial(1, oddsBeingOne, sizeMax**2)
 
 
-    jCon.dtype  = float
+    jCon        = jCon.astype(float)
     jCon.shape  = (sizeMax,sizeMax)
 
     #add weights
@@ -594,7 +596,7 @@ def sequRun(jCon, thresh, external, timer, sizeM, extM, K, mean0, recNum = 10):
     timeOut(np.mean(np.array(timediff)))
     return indiNeuronsDetailed, total_times_one, fireCount, nval_over_time
 
-def poissonish(sizeM,timeOut, tau, nval, jCon, thresh, external, fireCount, indiNeuronsDetailed, recNum):
+def poissonish2(sizeM,timeOut, tau, nval, jCon, thresh, external, fireCount, indiNeuronsDetailed, recNum):
     """
     Randomly chooses between excitatory or inhibitory sequence
 
@@ -805,7 +807,7 @@ def prepare(K, mean0, tau, sizeE, sizeI, extE, extI, jE, jI, threshE, threshI):
     ### Threshoold Level ###
     threshM = np.array([threshE, threshI])
     threshM.setflags(write=False)
-    thresh = createThresh(sizeM, threshM) #createAltThresh generates gaussian
+    thresh = createThresh(sizeM, threshM)  
     thresh.setflags(write=False)
 
     ### Values of Connection Matrix ###
@@ -830,18 +832,27 @@ def prepare(K, mean0, tau, sizeE, sizeI, extE, extI, jE, jI, threshE, threshI):
 
 
 def testRoutine(
-    timer, K, mean0, tau, sizeM,threshM, extM, recNum,
+    timer, K, mean0, tau,
+    sizeM,threshM, extM, recNum,
     jCon, thresh, external, figfolder, valueFolder,
     jE, jI, extratxt = "",
     doSequ = 1, doPoissISH = 0,
     pTot=0, pIndi=0, pIndiExt= 0, pDist=0,  pDots=0):
+    """
+        timer, K, mean0, tau,
+        sizeM, threshM, extM, recNum,
+        jCon, thresh, external, figfolder, valueFolder,
+        jE, jI,extratxt,
+        doSequ, doPoissISH,
+        pTot, pIndi, pIndiExt, pDist,pDots)
+    """
 
     sizeMax = sizeM[0] + sizeM[1]
     np.set_printoptions(edgeitems = 10)
     titletxt = f'S_{int(np.log10(sizeMax))}_K_{(K)}_m0_{mean0}'# \njE: {jE}   jI: {jI} '
     titletxt = f's_{float(sizeMax):2.0}_K_{(K)}_m0_{int(np.log10(mean0))}'# \nje: {je}   ji: {ji} '
     captiontxt = f'Network Size: {sizeMax}  K: {K}  mean_0: {mean0} \n\
-        total_times_one time: {timer}   jE: {jE}   jI: {jI} ' + extratxt
+        total: {timer}   jE: {jE}   jI: {jI} ' + extratxt
 
     print("run")
     timestart = time.time()
@@ -866,7 +877,8 @@ def testRoutine(
         plotIndiExtended(figfolder,indiNeuronsDetailed,fireCount, threshM, titletxt, captiontxt)
     if pDist:
         plotDistBetweenTwoFires(figfolder, nval_over_time, timer, titletxt, captiontxt)
-    plotDots(figfolder, nval_over_time, timer, titletxt, captiontxt)
+    if pDots:
+        plotDots(figfolder, nval_over_time, timer, titletxt, captiontxt)
 
 def parameters():
     timer   = 200
@@ -882,7 +894,7 @@ def parameters():
     mean0   = 0.1
     K       = 1000
     ### Deviations ###
-    timer   = 10
+    timer   = 100
     K       = 1000
     size    = 1000
     sizeE   = size
@@ -922,7 +934,8 @@ def main():
         threshE, threshI)
 
     testRoutine(
-        timer, K, mean0, tau, sizeM, threshM, extM, recNum,
+        timer, K, mean0, tau,
+        sizeM, threshM, extM, recNum,
         jCon, thresh, external, figfolder, valueFolder,
         jE, jI,extratxt,
         doSequ, doPoissISH,
