@@ -264,9 +264,8 @@ def plotIndi(figfolder, indiNeuronsDetailed, fireCount, threshM, titletxt, capti
     plt.close(fig)
 
 
-def plotIndiExtended(figfolder, indiNeuronsDetailed, fireCount, threshM, titletxt, captiontxt):
+def plotIndiExtended(figfolder, indiNeuronsDetailed, fireCount, threshM, recNum, titletxt, captiontxt):
     showRange = 15
-    recNum = 1000
     exORin = 0
     level = 0
     fig, axarr = plt.subplots(2,sharex=True,)
@@ -363,7 +362,8 @@ def plotDots(figfolder, nval_over_time, timer, titletxt, captiontxt):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     record =np.transpose(nval_over_time)
-    ax.imshow(record, aspect='auto', cmap='Greys', interpolation='nearest')
+    #ax.imshow(record, aspect='auto', cmap='Greys', interpolation='nearest')
+    ax.imshow(nval_over_time, aspect='auto', cmap='Greys', interpolation='nearest')
     plt.title('Neurons firing over time')
     plt.xlabel('time')
     plt.ylabel('neurons')
@@ -609,13 +609,15 @@ def sequRun(jCon, thresh, external, timer, sizeM, extM, K, mean0, recNum = 10):
     timeOut(np.mean(np.array(timediff)))
     return indiNeuronsDetailed, total_times_one, fireCount, nval_over_time
 
-def poissonish(sizeM,timeOut, tau, nval, jCon, thresh, external, fireCount, indiNeuronsDetailed, recNum):
+def poisson(sizeM,timeOut, tau, nval, jCon, thresh, external, fireCount, indiNeuronsDetailed, randomProcess, recNum):
+    
     """
     Randomly chooses between excitatory or inhibitory sequence
 
     Randomly chooses between excitatory or inhibitory sequence with relative likelihood tau 
     to choose inhibitory (ie 1 meaning equally likely).
-    Currently only supports recording individual excitatory neurons
+    Each round a new permutation of range is drawn
+    Currently only supports recording individual excitatory neurons for indiNeuronsDetailed
 
 
     @param      timeOut : Controls runtime
@@ -629,7 +631,7 @@ def poissonish(sizeM,timeOut, tau, nval, jCon, thresh, external, fireCount, indi
     @param      indiNeuronsDetailed: 
     @param      recNum  : How many neurons are recorded 
 
-    @return     Nothing
+    @return     nvalOvertime
     """
     total_times_one = np.zeros_like(nval)
     nval_over_time = np.zeros((sum(sizeM),timeOut))
@@ -638,17 +640,22 @@ def poissonish(sizeM,timeOut, tau, nval, jCon, thresh, external, fireCount, indi
 
     exTime      = 0
     exIterStart = 0
-    exIterMax   = sizeM[0] - 1
+    exIterMax   = sizeM[0] 
     exIter      = exIterStart 
-    exSequence  = np.random.permutation(sizeM[0])
 
     inTime      = 0
     inIterStart = 0
-    inIterMax   = sizeM[1] - 1
+    inIterMax   = sizeM[1] 
     inIter      = inIterStart       #iterates through sequence below
-    inSequence  = np.random.permutation(np.arange(sizeM[0],sizeMax))
 
+    if randomProcess: 
+        exSequence  = np.random.randint(0, sizeM[0], sizeM[0])
+        inSequence  = np.random.randint(sizeM[0],sizeMax,sizeM[1])
+    else:
+        exSequence  = np.random.permutation(sizeM[0])
+        inSequence  = np.random.permutation(np.arange(sizeM[0],sizeMax))
     while exTime < timeOut:
+        nval_old = nval.copy()
         if np.random.uniform(0,1)<prob:
             iterator = exSequence[exIter]
             if iterator <recNum:
@@ -656,116 +663,47 @@ def poissonish(sizeM,timeOut, tau, nval, jCon, thresh, external, fireCount, indi
                     thresh, external, fireCount, sizeM)
                 indiNeuronsDetailed[iterator].append(vals)
                 if vals[1] >= 1:
-                    nval_over_time[iterator,exTime]
-            else:
-                overThresh = timestepMat (iterator, nval, jCon, thresh, external, fireCount)
-                if overThresh >= 0:
-                    nval_over_time[iterator,exTime]
-
-            exIter +=1
-            if exIter >= exIterMax:
-                exTime+=1
-                exIter = exIterStart
-                total_times_one = nval[:sizeM[0]]
-                exSequence = np.random.permutation(sizeM[0])
-                if exTime % 10 == 0:
-                    print(exTime)
-        else:
-            iterator = inSequence[inIter]
-            overThresh = timestepMat (iterator, nval, jCon, thresh, external, fireCount)
-            if overThresh >= 0:
-                nval_over_time[iterator,inTime]
-            inIter += 1
-            if inIter >= inIterMax:
-                inTime  += 1
-                inIter  = inIterStart
-                total_times_one   = nval[sizeM[0]:]
-                inSequence = np.random.permutation(np.arange(sizeM[0],sizeMax))
-    return nval_over_time
-
-
-
-
-#def poisson(sizeM,timeOut, tau, nval, jCon, thresh, external, fireCount, indiNeuronsDetailed, recNum):
-    """
-    Randomly chooses between excitatory or inhibitory sequence
-
-    Randomly chooses between excitatory or inhibitory sequence with relative likelihood tau 
-    to choose inhibitory (ie 1 meaning equally likely).
-    Currently only supports recording individual excitatory neurons
-
-
-    @param      timeOut : Controls runtime
-    @param      sizeM   : Contains information over the network size
-    @param      tau     : How often inhibitory neurons fireCount compared to excitatory
-    @param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
-    @param      jCon    : Connection Matrix 
-    @param      thresh  : Stores Thresholds 
-    @param      external: Input from external Neurons 
-    @param      fireCount    : records how often a neuron switches to active state 
-    @param      indiNeuronsDetailed: 
-    @param      recNum  : How many neurons are recorded 
-
-    @return     Nothing
-    """
-    """
-    total_times_one = np.zeros_like(nval)
-    nval_over_time = np.zeros((sum(sizeM),timeOut))
-    sizeMax = sum(sizeM)    
-    prob =  1. / (1+tau)
-
-    exTime      = 0
-    exIterStart = 0
-    exIterMax   = sizeM[0] - 1
-    exIter      = exIterStart 
-    exSequence  = np.random.permutation(sizeM[0])
-
-    inTime      = 0
-    inIterStart = 0
-    exIterMax   = sizeM[1] - 1
-    inIter      = inIterStart       #iterates through sequence below
-    inSequence  = np.random.permutation(np.arange(sizeM[0],sizeMax))
-
-    while exTime < timeOut:
-        if np.random.uniform(0,1)<prob:
-            iterator = exSequence[exIter]
-            if iterator <recNum:
-                vals = timestepMatRecord(iterator, nval, jCon,
-                    thresh, external, fireCount, sizeM)
-                indiNeuronsDetailed[iterator].append(vals)
-                if vals[1] >= 0:
-                    nval_over_time[iterator,exTime]
-            else:
-                overThresh = timestepMat (iterator, nval, jCon, thresh, external, fireCount)
-                if overThresh >= 0:
-                    print("!")
                     nval_over_time[iterator,exTime] += 1
-
+            else:
+                overThresh = timestepMat (iterator, nval, jCon, thresh, external, fireCount)
+                if overThresh >= 0:
+                    nval_over_time[iterator,exTime] += 1
             exIter +=1
             if exIter >= exIterMax:
                 exTime+=1
                 exIter = exIterStart
                 total_times_one = nval[:sizeM[0]]
-                exSequence = np.random.permutation(sizeM[0])
+                if randomProcess: 
+                    exSequence  = np.random.randint(0, sizeM[0], sizeM[0])
+                else:
+                    exSequence = np.random.permutation(sizeM[0])
                 if exTime % 10 == 0:
                     print(exTime)
         else:
             iterator = inSequence[inIter]
             overThresh = timestepMat (iterator, nval, jCon, thresh, external, fireCount)
             if overThresh >= 0:
-                print("!")
+                #print("!")
                 nval_over_time[iterator,inTime] += 1
             inIter += 1
             if inIter >= inIterMax:
                 inTime  += 1
                 inIter  = inIterStart
                 total_times_one   = nval[sizeM[0]:]
-                inSequence = np.random.permutation(np.arange(sizeM[0],sizeMax))
+                if randomProcess:
+                    inSequence  = np.random.randint(sizeM[0],sizeMax,sizeM[1])
+                else:
+                    inSequence = np.random.permutation(np.arange(sizeM[0],sizeMax))
+            #if nval[iterator] == 1:
+                #print("?")
+                #nval_over_time[iterator,inTime] = 1
+
+
     return nval_over_time
-"""
+
 
 def poissRun(jCon, thresh, external, timeOut,
-    sizeM, extM, K, mean0, tau, recNum = 10):
+    sizeM, extM, K, mean0, tau, randomProcess, recNum = 15):
     """
     Runs a mix between poisson and sequential Code
 
@@ -791,7 +729,7 @@ def poissRun(jCon, thresh, external, timeOut,
     total_times_one = np.zeros_like(nval)
     indiNeuronsDetailed = [[] for i in range(recNum)] 
 
-    nval_over_time = poissonish(sizeM,timeOut, tau, nval, jCon, thresh, external, fireCount, indiNeuronsDetailed, recNum)
+    nval_over_time = poisson(sizeM,timeOut, tau, nval, jCon, thresh, external, fireCount, indiNeuronsDetailed, randomProcess, recNum)
     total_times_one = fireCount
     return indiNeuronsDetailed, total_times_one, fireCount, nval_over_time
     
@@ -854,7 +792,7 @@ def testRoutine(
     sizeM,threshM, extM, recNum,
     jCon, thresh, external, figfolder, valueFolder,
     jE, jI, titletxt = "", captiontxt = "",
-    doSequ = 1, doPoissISH = 0,
+    doSequ = 1, doPoiss = 0, doRand = 0,
     pTot=0, pIndi=0, pIndiExt= 0, pDist=0,  pDots=0):
     """
     executes the differen sequences
@@ -868,13 +806,24 @@ def testRoutine(
     extracap = ""
     extratitle = ""
     if doSequ:
-        indiNeuronsDetailed, total_times_one, fireCount, nval_over_time = sequRun(jCon, thresh, external, timer ,sizeM, extM, K, mean0, recNum)
+        indiNeuronsDetailed, total_times_one, fireCount, nval_over_time = sequRun(
+            jCon, thresh, external, timer ,sizeM, extM, K, mean0, recNum)
         extracap    = "sequence 1 to N"
         extratitle  = "sequ"
-    if doPoissISH:
-        indiNeuronsDetailed,total_times_one, fireCount, nval_over_time= poissRun(jCon, thresh, external, timer, sizeM, extM, K, mean0, tau)
+    if doPoiss:
+        randomProcess = doRand
+        indiNeuronsDetailed,total_times_one, fireCount, nval_over_time= poissRun(
+            jCon, thresh, external, timer, sizeM, extM,
+            K, mean0, tau, randomProcess, recNum)
         extracap    = "Poisson"
         extratitle  = "poiss"
+        if randomProcess:
+            extracap += ", stochastic"
+            extratitle += "Rand"
+        else:
+            extracap += ", deterministic"
+            extratitle += "Permute"
+
     captiontxt += " " + extracap 
     titletxt += "_" + extratitle
     timeend = time.time()
@@ -903,7 +852,7 @@ def testRoutine(
         plotIndi(figfolder,indiNeuronsDetailed,fireCount, threshM, titletxt, captiontxt)
     if pIndiExt:
         #print(np.sum(indiNeuronsDetailed[1]))
-        plotIndiExtended(figfolder,indiNeuronsDetailed,fireCount, threshM, titletxt, captiontxt)
+        plotIndiExtended(figfolder,indiNeuronsDetailed,fireCount, threshM, recNum, titletxt, captiontxt)
     if pDist:
         plotDistBetweenTwoFires(figfolder, nval_over_time, timer, titletxt, captiontxt)
     if pDots:
@@ -911,7 +860,7 @@ def testRoutine(
         plotDots(figfolder, nval_over_time, timer, titletxt, captiontxt)
 
 def afterSimulationAnalysis():
-    loadTimeStr = "191110_1931" #create a "find most recent" function
+    loadTimeStr = "191110_2029" #create a "find most recent" function
     valuefoldername = "ValueVault/testreihe_"
     valueFolder =  Path(valuefoldername + loadTimeStr)
 
@@ -919,13 +868,18 @@ def afterSimulationAnalysis():
     figfolder = "figs/testreihe_" + timestr
 
     indiNeuronsDetailed, fireCount, nval_over_time, infoDict = recoverResults(valueFolder)
-    total_times_one = rowSums(np.transpose(nval_over_time))
+    total_times_one = rowSums((nval_over_time))
+    print(np.mean(total_times_one))
+    print(np.shape(indiNeuronsDetailed))
+
 
     titletxt    = infoDict["titletxt"]
     captiontxt  = infoDict["captiontxt"]
     threshM     = infoDict["threshM"]
     timer       = infoDict["timer"]
 
+
+    print(np.mean(total_times_one[:1000])/timer)
     ### Plotting Routine ###
     pTot        = 0
     pIndi       = 0
@@ -937,7 +891,7 @@ def afterSimulationAnalysis():
     if pIndi:
         plotIndi(figfolder,indiNeuronsDetailed,fireCount, threshM, titletxt, captiontxt)
     if pIndiExt:
-        plotIndiExtended(figfolder,indiNeuronsDetailed,fireCount, threshM, titletxt, captiontxt)
+        plotIndiExtended(figfolder,indiNeuronsDetailed,fireCount, threshM, recNum, titletxt, captiontxt)
     if pDist:
         plotDistBetweenTwoFires(figfolder, nval_over_time, timer, titletxt, captiontxt)
     if pDots:
@@ -958,8 +912,8 @@ def parameters():
     K       = 1000
     ### Deviations ###
     timer   = 50
-    K       = 100
-    size    = 100
+    K       = 1000
+    size    = 1000
     sizeE   = size
     sizeI   = size
 
@@ -985,8 +939,9 @@ def main():
     recNum      = 100
 
     #Only one Sequence per Routine
-    doSequ      = 1
-    doPoissISH  = 0 #Currently Error when running with pIndiExt
+    doSequ      = 0
+    doPoiss     = 1 
+    doRand      = 0 
     
     print("Ergebnisse abspeichern und danach plotten")
     print("What exactly is Poisson statistics and process")
@@ -997,7 +952,6 @@ def main():
         threshE, threshI)
 
     sizeMax = np.sum(sizeM)
-    titletxt = f'S_{float(sizeMax):2.0}_K_{(K)}_m0_{int(np.log10(mean0))}'# \nje: {je}   ji: {ji} '
     titletxt = f'_S_{str(sizeMax)[:1]}e{int(np.log10(sizeMax))}_K_{(K)}'#_m0_{str(mean0)[2:]}'# \njE: {jE}   jI: {jI} '
     captiontxt = f'Network Size: {sizeMax}  K: {K}  mean_0: {mean0} \n\
         time: {timer}   jE: {jE}   jI: {jI} ' + extratxt
@@ -1007,10 +961,11 @@ def main():
         sizeM, threshM, extM, recNum,
         jCon, thresh, external, figfolder, valueFolder,
         jE, jI,titletxt, captiontxt,
-        doSequ, doPoissISH,
+        doSequ, doPoiss, doRand,
         pTot, pIndi, pIndiExt, pDist,pDots)
 
 
 if __name__ == "__main__":
     #afterSimulationAnalysis()
     main()
+
