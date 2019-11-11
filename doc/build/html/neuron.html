@@ -1,0 +1,454 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>neuron module &mdash; balanced_net 0.0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="bachelor_thesis" href="modules.html" />
+    <link rel="prev" title="Welcome to balanced_net’s documentation!" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> balanced_net
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">neuron module</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">bachelor_thesis</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="mathsim.html">mathsim module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">neuron module</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">balanced_net</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>neuron module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/neuron.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="neuron-module">
+<h1>neuron module<a class="headerlink" href="#neuron-module" title="Permalink to this headline">¶</a></h1>
+<p>Klappt das This is a test!!!!!!!!
+anscheinenn nicht</p>
+<span class="target" id="module-neuron"></span><p>Current File containing all relevant functions for my bachelor thesis</p>
+<dl class="function">
+<dt id="neuron.analyzeTau">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">analyzeTau</code><span class="sig-paren">(</span><em class="sig-param">rec</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.analyzeTau" title="Permalink to this definition">¶</a></dt>
+<dd><p>calculates fire rate of [0,0,0,1,0,1,0,0,1,1,1,1,1,1,0,1] as [1, 2, 1]</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.createExt">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">createExt</code><span class="sig-paren">(</span><em class="sig-param">sizeM</em>, <em class="sig-param">extM</em>, <em class="sig-param">K</em>, <em class="sig-param">mean0</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.createExt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates vector of external input for each Datapoint</p>
+<p>(with all exhib and all inhib having the same value)</p>
+<p>:param      sizeM   : Contains size of exhib and inhib neurons
+:param      extM    : Contains factors of external neurons for the inhib values in the system
+:param      K       : Connection Number
+:param      mean0   : Mean activation of external neurons</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.createNval">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">createNval</code><span class="sig-paren">(</span><em class="sig-param">sizeM</em>, <em class="sig-param">extM</em>, <em class="sig-param">K</em>, <em class="sig-param">mean0</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.createNval" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initializes neuron values “nval” with starting values</p>
+<p>:param      sizeM   : Contains size of exhib and inhib neurons
+:param      extM    : Contains factors of external neurons for the inhib values in the system
+:param      K       : Connection Number
+:param      mean0   : Mean activation of external neurons</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.createThresh">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">createThresh</code><span class="sig-paren">(</span><em class="sig-param">sizeM</em>, <em class="sig-param">threshM</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.createThresh" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates Threshold vector with threshold for each Datapoint</p>
+<p>:param      sizeM   : Contains size of exhib and inhib neurons
+:param      threshM : Contains values for threshold</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.createjCon">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">createjCon</code><span class="sig-paren">(</span><em class="sig-param">sizeM</em>, <em class="sig-param">jVal</em>, <em class="sig-param">K</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.createjCon" title="Permalink to this definition">¶</a></dt>
+<dd><p>Current Connection Matrix Creator (31/10)</p>
+<p>Only working for</p>
+<p>:param     sizeM   : Contains size of exhib and inhib
+:param     jVal    : Contains nonzero Values for Matrix
+:param     K       : Number of connections with inhib/exhib</p>
+<p>:return     jCon    : Connection Matrix</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.createjConFromFile">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">createjConFromFile</code><span class="sig-paren">(</span><em class="sig-param">filename</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.createjConFromFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Utitlity Function:</p>
+<p>loads built Connection Matrices into process for speed gains</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.jConTinker">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">jConTinker</code><span class="sig-paren">(</span><em class="sig-param">sizeM</em>, <em class="sig-param">jVal</em>, <em class="sig-param">K</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.jConTinker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Utility Function: To save runtimes</p>
+<blockquote>
+<div><p>during testing, connection matrices are saved
+and reloaded if specificatinos match</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.plotDistBetweenTwoFires">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">plotDistBetweenTwoFires</code><span class="sig-paren">(</span><em class="sig-param">figfolder</em>, <em class="sig-param">nval_over_time</em>, <em class="sig-param">timer</em>, <em class="sig-param">titletxt</em>, <em class="sig-param">captiontxt</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.plotDistBetweenTwoFires" title="Permalink to this definition">¶</a></dt>
+<dd><p>see analyze for calculation</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.plotIndi">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">plotIndi</code><span class="sig-paren">(</span><em class="sig-param">figfolder</em>, <em class="sig-param">indiNeuronsDetailed</em>, <em class="sig-param">fireCount</em>, <em class="sig-param">threshM</em>, <em class="sig-param">titletxt</em>, <em class="sig-param">captiontxt</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.plotIndi" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots inputs in several neurons (ie 3 to 10)</p>
+<p>Shows positive, negative and total_times_one input for several neurons</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>indiNeuronsDetailed</strong> – Contains pos, neg, and total_times_one value for a subgroup of neurons at each timestep</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.plotTotal">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">plotTotal</code><span class="sig-paren">(</span><em class="sig-param">figfolder</em>, <em class="sig-param">total_times_one</em>, <em class="sig-param">fireCount</em>, <em class="sig-param">timer</em>, <em class="sig-param">titletxt</em>, <em class="sig-param">captiontxt</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.plotTotal" title="Permalink to this definition">¶</a></dt>
+<dd><p>plots distribution of firing pattern in relation to mean firing pattern</p>
+<p>(currently everything larger than 5*mean is labelled as 6)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>total_times_one</strong> – contains all the times a specific neuron fired</p></li>
+<li><p><strong>fireCount</strong> – contains all the times a specific neuron spiked
+(ie turned 0 afterwards) (not in use)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.poissRun">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">poissRun</code><span class="sig-paren">(</span><em class="sig-param">jCon</em>, <em class="sig-param">thresh</em>, <em class="sig-param">external</em>, <em class="sig-param">maxTime</em>, <em class="sig-param">sizeM</em>, <em class="sig-param">extM</em>, <em class="sig-param">K</em>, <em class="sig-param">mean0</em>, <em class="sig-param">tau</em>, <em class="sig-param">randomProcess</em>, <em class="sig-param">recNum=15</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.poissRun" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs a mix between poisson and sequential Code</p>
+<p>Introduces analyze tools</p>
+<p>:param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
+:param      jCon    : Connection Matrix 
+:param      thresh  : Stores Thresholds 
+:param      external: Input from external Neurons 
+:param      fireCount    : records how often a neuron switches to active state 
+:param      maxTime : Controls runtime
+:param      sizeM   : Contains information over the network size
+:param      tau     : How often inhibitory neurons fireCount compared to excitatory
+:param      recNum  : How many neurons are recorded</p>
+<p>:return     Returns indiNeuronsDetailed and total_times_one which analyze individual (ie subset of) neurons and all neurons respectively</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.poissoni">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">poissoni</code><span class="sig-paren">(</span><em class="sig-param">sizeM</em>, <em class="sig-param">maxTime</em>, <em class="sig-param">tau</em>, <em class="sig-param">nval</em>, <em class="sig-param">jCon</em>, <em class="sig-param">thresh</em>, <em class="sig-param">external</em>, <em class="sig-param">fireCount</em>, <em class="sig-param">indiNeuronsDetailed</em>, <em class="sig-param">randomProcess</em>, <em class="sig-param">recNum</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.poissoni" title="Permalink to this definition">¶</a></dt>
+<dd><p>Randomly chooses between excitatory or inhibitory sequence</p>
+<p>Randomly chooses between excitatory or inhibitory sequence with relative likelihood tau 
+to choose inhibitory (ie 1 meaning equally likely).
+Each round a new permutation of range is drawn
+Currently only supports recording individual excitatory neurons for indiNeuronsDetailed</p>
+<p>:param      maxTime : Controls runtime
+:param      sizeM   : Contains information over the network size
+:param      tau     : How often inhibitory neurons fireCount compared to excitatory
+:param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
+:param      jCon    : Connection Matrix 
+:param      thresh  : Stores Thresholds 
+:param      external: Input from external Neurons 
+:param      fireCount    : records how often a neuron switches to active state 
+:param      indiNeuronsDetailed: 
+:param      recNum  : How many neurons are recorded</p>
+<p>:return     nvalOvertime</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.prepare">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">prepare</code><span class="sig-paren">(</span><em class="sig-param">K</em>, <em class="sig-param">mean0</em>, <em class="sig-param">tau</em>, <em class="sig-param">sizeE</em>, <em class="sig-param">sizeI</em>, <em class="sig-param">extE</em>, <em class="sig-param">extI</em>, <em class="sig-param">jE</em>, <em class="sig-param">jI</em>, <em class="sig-param">threshE</em>, <em class="sig-param">threshI</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.prepare" title="Permalink to this definition">¶</a></dt>
+<dd><p>creates all the needed objects and calls the workload functions and plots.
+Virtually a main function, without parameter definition</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.recoverResults">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">recoverResults</code><span class="sig-paren">(</span><em class="sig-param">valueFolder</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.recoverResults" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load saved results from file.</p>
+<p>Missing functionality: so far, does only take neurons with preset names</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>valueFolder</strong> – This is a test!!!!!!!!</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.saveResults">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">saveResults</code><span class="sig-paren">(</span><em class="sig-param">valueFolder</em>, <em class="sig-param">indiNeuronsDetailed</em>, <em class="sig-param">fireCount</em>, <em class="sig-param">nval_over_time</em>, <em class="sig-param">timer</em>, <em class="sig-param">threshM</em>, <em class="sig-param">titletext</em>, <em class="sig-param">captiontxt</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.saveResults" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save recordings of output to file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>valueFolder</strong> (<em>class: 'pathlib.PosixPath'</em>) – Path to storage folder</p></li>
+<li><p><strong>indiNeuronsDetailed</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.sequRun">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">sequRun</code><span class="sig-paren">(</span><em class="sig-param">jCon</em>, <em class="sig-param">thresh</em>, <em class="sig-param">external</em>, <em class="sig-param">timer</em>, <em class="sig-param">sizeM</em>, <em class="sig-param">extM</em>, <em class="sig-param">K</em>, <em class="sig-param">mean0</em>, <em class="sig-param">recNum=10</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.sequRun" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs the sequence 1 to N for “time” times.</p>
+<p>Manages Recordings aswell (see :return)</p>
+<p>:param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
+:param      jCon    : Connection Matrix 
+:param      thresh  : Stores Thresholds 
+:param      external: Input from external Neurons 
+:param      fireCount    : records how often a neuron switches to active state 
+:param      time    : Controls runtime
+:param      sizeM   : Contains information over the network size
+:param      recNum  : How many neurons are recorded</p>
+<dl class="simple">
+<dt>:return     Returns indiNeuronsDetailed and total_times_one which analyze individual (ie subset of) neurons and all neurons respectively,</dt><dd><p>aswell as nval_over_time which records nval after every time step</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.sequential">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">sequential</code><span class="sig-paren">(</span><em class="sig-param">nval</em>, <em class="sig-param">jCon</em>, <em class="sig-param">thresh</em>, <em class="sig-param">external</em>, <em class="sig-param">fireCount</em>, <em class="sig-param">indiNeuronsDetailed</em>, <em class="sig-param">recNum</em>, <em class="sig-param">sizeM</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.sequential" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates neurons in the sequence 1 to N</p>
+<p>if smaller than recNum (or closer to sizeMax for inhibitory) then all changes are recorded in indiNeuronsDetailed
+:param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
+:param      jCon    : Connection Matrix 
+:param      thresh  : Stores Thresholds 
+:param      external: Input from external Neurons 
+:param      fireCount    : records how often a neuron switches to active state CHANGES
+:param      time    : Controls runtime
+:param      sizeM   : Contains information over the network size
+:param      indiNeuronsDetailed:  CHANGES
+:param      recNum  : How many neurons are recorded</p>
+<p>:return    Nothing</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.testRoutine">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">testRoutine</code><span class="sig-paren">(</span><em class="sig-param">timer</em>, <em class="sig-param">K</em>, <em class="sig-param">mean0</em>, <em class="sig-param">tau</em>, <em class="sig-param">sizeM</em>, <em class="sig-param">threshM</em>, <em class="sig-param">extM</em>, <em class="sig-param">recNum</em>, <em class="sig-param">jCon</em>, <em class="sig-param">thresh</em>, <em class="sig-param">external</em>, <em class="sig-param">figfolder</em>, <em class="sig-param">valueFolder</em>, <em class="sig-param">jE</em>, <em class="sig-param">jI</em>, <em class="sig-param">titletxt=''</em>, <em class="sig-param">captiontxt=''</em>, <em class="sig-param">doSequ=1</em>, <em class="sig-param">doPoiss=0</em>, <em class="sig-param">doRand=0</em>, <em class="sig-param">pTot=0</em>, <em class="sig-param">pIndi=0</em>, <em class="sig-param">pIndiExt=0</em>, <em class="sig-param">pDist=0</em>, <em class="sig-param">pDots=0</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.testRoutine" title="Permalink to this definition">¶</a></dt>
+<dd><p>executes the differen sequences</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.timestepMat">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">timestepMat</code><span class="sig-paren">(</span><em class="sig-param">iter</em>, <em class="sig-param">nval</em>, <em class="sig-param">jCon</em>, <em class="sig-param">thresh</em>, <em class="sig-param">external</em>, <em class="sig-param">fireCount</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.timestepMat" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculator for whether one neuron changes value</p>
+<p>Sums all the input with corresponding weights. 
+Afterwords adds external input and subtracts threshold. 
+Result is plugged in Heaviside function</p>
+<p>:param      iter    : iterator, determines which neuron is to be changed
+:param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
+:param      jCon    : Connection Matrix 
+:param      thresh  : Stores Thresholds 
+:param      external: Input from external Neurons 
+:param      fireCount    : records how often a neuron switches to active state</p>
+<p>:return             : for troubleshooting returns value before Heaviside function</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="neuron.timestepMatRecord">
+<code class="sig-prename descclassname">neuron.</code><code class="sig-name descname">timestepMatRecord</code><span class="sig-paren">(</span><em class="sig-param">iter</em>, <em class="sig-param">nval</em>, <em class="sig-param">jCon</em>, <em class="sig-param">thresh</em>, <em class="sig-param">external</em>, <em class="sig-param">fireCount</em>, <em class="sig-param">sizeM</em><span class="sig-paren">)</span><a class="headerlink" href="#neuron.timestepMatRecord" title="Permalink to this definition">¶</a></dt>
+<dd><p>Current Calculator for whether one neuron changes value or not(31/10)</p>
+<p>Particularity: Records additional information ie positive and negative input 
+Sums all the input with corresponding weights. 
+Afterwords adds external input and subtracts threshold. 
+Result is plugged in Heaviside function</p>
+<p>:param      iter    : iterator, determines which neuron is to be changed
+:param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
+:param      jCon    : Connection Matrix 
+:param      thresh  : Stores Thresholds 
+:param      external: Input from external Neurons 
+:param      fireCount    : records how often a neuron switches to active state</p>
+<p>:return         : returns positive input from other neurons, all input (-threshold) and negative input</p>
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="modules.html" class="btn btn-neutral float-right" title="bachelor_thesis" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="index.html" class="btn btn-neutral float-left" title="Welcome to balanced_net’s documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Sebastian Bielfeldt
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

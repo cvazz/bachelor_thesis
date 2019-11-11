@@ -1,3 +1,6 @@
+"""
+Current File containing all relevant functions for my bachelor thesis
+"""
 import numpy as np
 import math
 import random 
@@ -26,6 +29,7 @@ plotLoc_print2console_GLOBAL = 1
 def createjConFromFile(filename):
     """
     Utitlity Function:
+
     loads built Connection Matrices into process for speed gains
     """
     jCon = np.load(filename, allow_pickle = True)
@@ -34,7 +38,10 @@ def createjConFromFile(filename):
 
 def jConTinker(sizeM, jVal,K):
     """
-    Utility Function: To save runtimes during testing, connection matrices are saved and reloaded if specificatinos match
+    Utility Function: To save runtimes
+    
+     during testing, connection matrices are saved
+     and reloaded if specificatinos match
 
     """
     folderCon =  Path("jCon_Repository")
@@ -111,61 +118,106 @@ def plotMessage(fullname):
         print("plotted and saved at: " + fullname)
 
 def timeOut(timediff):
+    printstring = ""
     if timediff>200:
         mins = int(timediff/60)
         secs = timediff-mins*60
         if mins> 100:
             hours = int (mins/60)
             mins  = mins%60
-            print('{} h, {} m and {:3.6} s'.format(hours, mins, secs))
-        else:
-            print('{}m and {:3.6} s'.format(mins,secs))
+            printstring += f'{hours}h, '
+        printstring += f'{mins}m and '
     else: 
-        print('{:3.6} s'.format(timediff))
+        secs = timediff
+    printstring += f'{secs:3.4}s'
+    print(printstring)
 
-def saveResults(valueFolder, infoDict, indiNeuronsDetailed, fireCount, nval_over_time):
+def saveResults(valueFolder, indiNeuronsDetailed, fireCount, nval_over_time, 
+                timer, threshM, titletext, captiontxt):
+    """
+    Save recordings of output to file.
+    
+    :param valueFolder: Path to storage folder
+    :type valueFolder: class: 'pathlib.PosixPath'
+    :param indiNeuronsDetailed:  
+
+    """
     if not valueFolder.exists():
         valueFolder.mkdir(parents = True)
 
+    infoDict = {
+        "timer"     : timer, 
+        "threshM"   : threshM,
+        "titletxt"  : titletxt,
+        "captiontxt": captiontxt,
+        }
+    infoDict["nvalOT_shape"] = np.shape(nval_over_time)
+
+    loc = []
+    uniq = np.unique(nval_over_time)
+    if len(uniq) > 2:
+        print(f"Warning nval_over_time has recorded non boolean values,"+
+        " which have not been saved")
+        print (uniq)
+    for iter in np.ndindex(np.shape(nval_over_time)):
+        if nval_over_time[iter]:
+            loc.append(iter)
+    loc = np.array(loc)
     #loop next time
     indiNametxt     = "indiNeurons"
     fireNametxt     = "fireCount"
-    nvalOTNametxt   = "nval_OT"
+    #nvalOTNametxt   = "nval_OT"
+    nvalIndexNametxt   = "nval_Index"
     infoNametxt     = "infoDict"
 
-    indiName    = makeNewPath(valueFolder, indiNametxt, "npy")
-    fireName    = makeNewPath(valueFolder, fireNametxt, "npy")
-    nvalOTName  = makeNewPath(valueFolder, nvalOTNametxt, "npy")
-    infoName    = makeNewPath(valueFolder, infoNametxt, "pkl")
+    indiName        = makeNewPath(valueFolder, indiNametxt, "npy")
+    fireName        = makeNewPath(valueFolder, fireNametxt, "npy")
+    #nvalOTName      = makeNewPath(valueFolder, nvalOTNametxt, "npy")
+    nval_Index_Name = makeNewPath(valueFolder, nvalIndexNametxt, "npy")
+    infoName        = makeNewPath(valueFolder, infoNametxt, "pkl")
 
     np.save(indiName, indiNeuronsDetailed)
     np.save(fireName, fireCount)
-    np.save(nvalOTName, nval_over_time)
+    #np.save(nvalOTName, nval_over_time)
+    np.save(nval_Index_Name, loc)
     infoName.touch()
     with open(infoName, "wb") as infoFile:
         pickle.dump(infoDict, infoFile, protocol = pickle.HIGHEST_PROTOCOL)
 
 def recoverResults(valueFolder):
     """
-    Missing functionality so far, does only take neurons with preset names
+    Load saved results from file.
+
+    Missing functionality: so far, does only take neurons with preset names
+
+    :param valueFolder: |valueFolder_desc|
     """
 
     indiNametxt = "indiNeurons"
     fireNametxt = "fireCount"
-    nvalOTNametxt = "nval_OT"
+    #nvalOTNametxt = "nval_OT"
+    nvalIndexNametxt   = "nval_Index"
     infoNametxt     = "infoDict"
 
-    indiName    = makeExistingPath(valueFolder, indiNametxt, "npy")
-    fireName    = makeExistingPath(valueFolder, fireNametxt, "npy")
-    nvalOTName  = makeExistingPath(valueFolder, nvalOTNametxt, "npy")
-    infoName    = makeExistingPath(valueFolder, infoNametxt, "pkl")
+    indiName        = makeExistingPath(valueFolder, indiNametxt, "npy")
+    fireName        = makeExistingPath(valueFolder, fireNametxt, "npy")
+    #nvalOTName      = makeExistingPath(valueFolder, nvalOTNametxt, "npy")
+    nval_Index_Name = makeExistingPath(valueFolder, nvalIndexNametxt, "npy")
+    infoName        = makeExistingPath(valueFolder, infoNametxt, "pkl")
 
     indiNeuronsDetailed = np.load(indiName, allow_pickle = True)
     fireCount           = np.load(fireName, allow_pickle = True)
-    nval_over_time      = np.load(nvalOTName, allow_pickle = True)
+    #nval_over_time      = np.load(nvalOTName, allow_pickle = True)
+    nval_Index          = np.load(nval_Index_Name, allow_pickle = True)
+
     with open(infoName, 'rb') as infoFile:
         infoDict = pickle.load(infoFile)
-    return indiNeuronsDetailed, fireCount, nval_over_time, infoDict
+    nval_OT = np.zeros(infoDict["nvalOT_shape"])
+    for it in nval_Index:
+        iter = (it[0], it[1])
+        nval_OT[iter] = 1
+
+    return indiNeuronsDetailed, fireCount, nval_OT, infoDict
 ################################################################################
 ############################# Plotting Functions ###############################
 ################################################################################
@@ -174,9 +226,11 @@ def plotTotal(figfolder, total_times_one, fireCount, timer, titletxt, captiontxt
     """
     plots distribution of firing pattern in relation to mean firing pattern
 
-    (currently (everything larger than 5*mean is labelled as 6)
-    @param      total_times_one   : contains all the times a specific neuron fired
-    @param      fireCount    : contains all the times a specific neuron spiked (ie turned 0 afterwards) (not in use)
+    (currently everything larger than 5*mean is labelled as 6)
+
+    :param total_times_one: contains all the times a specific neuron fired
+    :param fireCount: contains all the times a specific neuron spiked
+        (ie turned 0 afterwards) (not in use)
     """
     total_times_one = np.array(total_times_one)
     meanTot = np.mean(total_times_one)
@@ -231,7 +285,7 @@ def plotIndi(figfolder, indiNeuronsDetailed, fireCount, threshM, titletxt, capti
 
     Shows positive, negative and total_times_one input for several neurons 
 
-    @param      indiNeuronsDetailed     :Contains pos, neg, and total_times_one value for a subgroup of neurons at each timestep
+    :param indiNeuronsDetailed: Contains pos, neg, and total_times_one value for a subgroup of neurons at each timestep
 
     """
     showRange = 5
@@ -405,11 +459,11 @@ def createjCon(sizeM, jVal,K):
 
     Only working for 
 
-    @param1     sizeM   : Contains size of exhib and inhib
-    @param2     jVal    : Contains nonzero Values for Matrix
-    @param3     K       : Number of connections with inhib/exhib
+    :param     sizeM   : Contains size of exhib and inhib
+    :param     jVal    : Contains nonzero Values for Matrix
+    :param     K       : Number of connections with inhib/exhib
 
-    @return     jCon    : Connection Matrix
+    :return     jCon    : Connection Matrix
     """
     if sizeM[0] != sizeM[1]:
         raise ValueError("probability assumes equal likelihood of being excitatory or inhibitory")
@@ -436,10 +490,10 @@ def createNval(sizeM, extM, K, mean0):
     """
     Initializes neuron values "nval" with starting values
 
-    @param      sizeM   : Contains size of exhib and inhib neurons
-    @param      extM    : Contains factors of external neurons for the inhib values in the system
-    @param      K       : Connection Number
-    @param      mean0   : Mean activation of external neurons
+    :param      sizeM   : Contains size of exhib and inhib neurons
+    :param      extM    : Contains factors of external neurons for the inhib values in the system
+    :param      K       : Connection Number
+    :param      mean0   : Mean activation of external neurons
     """
     nval = []
     ones = mean0 * sizeM
@@ -455,8 +509,8 @@ def createThresh(sizeM, threshM):
     """
     Creates Threshold vector with threshold for each Datapoint
 
-    @param      sizeM   : Contains size of exhib and inhib neurons
-    @param      threshM : Contains values for threshold
+    :param      sizeM   : Contains size of exhib and inhib neurons
+    :param      threshM : Contains values for threshold
     """
     thresh= []
     for i in range(2):
@@ -471,10 +525,10 @@ def createExt(sizeM, extM, K, mean0):
     
     (with all exhib and all inhib having the same value)
 
-    @param      sizeM   : Contains size of exhib and inhib neurons
-    @param      extM    : Contains factors of external neurons for the inhib values in the system
-    @param      K       : Connection Number
-    @param      mean0   : Mean activation of external neurons
+    :param      sizeM   : Contains size of exhib and inhib neurons
+    :param      extM    : Contains factors of external neurons for the inhib values in the system
+    :param      K       : Connection Number
+    :param      mean0   : Mean activation of external neurons
     """
     ext = []
     extVal = extM * math.sqrt(K) *mean0
@@ -494,19 +548,17 @@ def timestepMat (iter, nval, jCon, thresh, external, fireCount):
     Afterwords adds external input and subtracts threshold. 
     Result is plugged in Heaviside function
 
-    @param      iter    : iterator, determines which neuron is to be changed
-    @param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
-    @param      jCon    : Connection Matrix 
-    @param      thresh  : Stores Thresholds 
-    @param      external: Input from external Neurons 
-    @param      fireCount    : records how often a neuron switches to active state 
+    :param      iter    : iterator, determines which neuron is to be changed
+    :param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
+    :param      jCon    : Connection Matrix 
+    :param      thresh  : Stores Thresholds 
+    :param      external: Input from external Neurons 
+    :param      fireCount    : records how often a neuron switches to active state 
 
-    @return             : for troubleshooting returns value before Heaviside function
+    :return             : for troubleshooting returns value before Heaviside function
     """
-    debug = 0
     sum = jCon[iter].dot(nval)
     decide = sum + external[iter] - thresh[iter]
-    if debug: print("iter:\t"+ str(iter) + "\tdecide:\t" + str(decide))
     if sum + external[iter] - thresh[iter] > 0:
         if nval[iter] == 0:
             fireCount[iter] += 1
@@ -524,14 +576,14 @@ def timestepMatRecord(iter, nval, jCon, thresh, external, fireCount,sizeM):
     Afterwords adds external input and subtracts threshold. 
     Result is plugged in Heaviside function
 
-    @param      iter    : iterator, determines which neuron is to be changed
-    @param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
-    @param      jCon    : Connection Matrix 
-    @param      thresh  : Stores Thresholds 
-    @param      external: Input from external Neurons 
-    @param      fireCount    : records how often a neuron switches to active state 
+    :param      iter    : iterator, determines which neuron is to be changed
+    :param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
+    :param      jCon    : Connection Matrix 
+    :param      thresh  : Stores Thresholds 
+    :param      external: Input from external Neurons 
+    :param      fireCount    : records how often a neuron switches to active state 
 
-    @return         : returns positive input from other neurons, all input (-threshold) and negative input
+    :return         : returns positive input from other neurons, all input (-threshold) and negative input
     """
     pos = jCon[iter,:sizeM[0]].dot(nval[:sizeM[0]])
     neg = jCon[iter,sizeM[0]:].dot(nval[sizeM[0]:])
@@ -553,22 +605,20 @@ def sequential(nval, jCon,  thresh, external, fireCount, indiNeuronsDetailed, re
     Updates neurons in the sequence 1 to N
 
     if smaller than recNum (or closer to sizeMax for inhibitory) then all changes are recorded in indiNeuronsDetailed
-    @param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
-    @param      jCon    : Connection Matrix 
-    @param      thresh  : Stores Thresholds 
-    @param      external: Input from external Neurons 
-    @param      fireCount    : records how often a neuron switches to active state CHANGES
-    @param      time    : Controls runtime
-    @param      sizeM   : Contains information over the network size
-    @param      indiNeuronsDetailed:  CHANGES
-    @param      recNum  : How many neurons are recorded 
+    :param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
+    :param      jCon    : Connection Matrix 
+    :param      thresh  : Stores Thresholds 
+    :param      external: Input from external Neurons 
+    :param      fireCount    : records how often a neuron switches to active state CHANGES
+    :param      time    : Controls runtime
+    :param      sizeM   : Contains information over the network size
+    :param      indiNeuronsDetailed:  CHANGES
+    :param      recNum  : How many neurons are recorded 
 
-    @return    Nothing 
+    :return    Nothing 
     """
-    debug = 0
     excite = 1
     sizeMax = sum(sizeM)
-    
     for iter in range(len(nval)):
         if excite:
             if iter <recNum:
@@ -585,25 +635,23 @@ def sequential(nval, jCon,  thresh, external, fireCount, indiNeuronsDetailed, re
             else:
                 timestepMat (iter, nval, jCon, thresh, external, fireCount)
 
-    if debug == 1:
-        print (nval)
 def sequRun(jCon, thresh, external, timer, sizeM, extM, K, mean0, recNum = 10):
     """
     Runs the sequence 1 to N for "time" times. 
 
-    Manages Recordings aswell (see @return)
+    Manages Recordings aswell (see :return)
 
-    @param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
-    @param      jCon    : Connection Matrix 
-    @param      thresh  : Stores Thresholds 
-    @param      external: Input from external Neurons 
-    @param      fireCount    : records how often a neuron switches to active state 
-    @param      time    : Controls runtime
-    @param      sizeM   : Contains information over the network size
-    @param      recNum  : How many neurons are recorded 
+    :param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
+    :param      jCon    : Connection Matrix 
+    :param      thresh  : Stores Thresholds 
+    :param      external: Input from external Neurons 
+    :param      fireCount    : records how often a neuron switches to active state 
+    :param      time    : Controls runtime
+    :param      sizeM   : Contains information over the network size
+    :param      recNum  : How many neurons are recorded 
 
 
-    @return     Returns indiNeuronsDetailed and total_times_one which analyze individual (ie subset of) neurons and all neurons respectively,
+    :return     Returns indiNeuronsDetailed and total_times_one which analyze individual (ie subset of) neurons and all neurons respectively,
                 aswell as nval_over_time which records nval after every time step
     """
     debug = 1
@@ -627,7 +675,7 @@ def sequRun(jCon, thresh, external, timer, sizeM, extM, K, mean0, recNum = 10):
     timeOut(np.mean(np.array(timediff)))
     return indiNeuronsDetailed, total_times_one, fireCount, nval_over_time
 
-def poisson(sizeM,timeOut, tau, nval, jCon, thresh, external, fireCount, indiNeuronsDetailed, randomProcess, recNum):
+def poissoni(sizeM, maxTime, tau, nval, jCon, thresh, external, fireCount, indiNeuronsDetailed, randomProcess, recNum):
     
     """
     Randomly chooses between excitatory or inhibitory sequence
@@ -638,21 +686,21 @@ def poisson(sizeM,timeOut, tau, nval, jCon, thresh, external, fireCount, indiNeu
     Currently only supports recording individual excitatory neurons for indiNeuronsDetailed
 
 
-    @param      timeOut : Controls runtime
-    @param      sizeM   : Contains information over the network size
-    @param      tau     : How often inhibitory neurons fireCount compared to excitatory
-    @param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
-    @param      jCon    : Connection Matrix 
-    @param      thresh  : Stores Thresholds 
-    @param      external: Input from external Neurons 
-    @param      fireCount    : records how often a neuron switches to active state 
-    @param      indiNeuronsDetailed: 
-    @param      recNum  : How many neurons are recorded 
+    :param      maxTime : Controls runtime
+    :param      sizeM   : Contains information over the network size
+    :param      tau     : How often inhibitory neurons fireCount compared to excitatory
+    :param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
+    :param      jCon    : Connection Matrix 
+    :param      thresh  : Stores Thresholds 
+    :param      external: Input from external Neurons 
+    :param      fireCount    : records how often a neuron switches to active state 
+    :param      indiNeuronsDetailed: 
+    :param      recNum  : How many neurons are recorded 
 
-    @return     nvalOvertime
+    :return     nvalOvertime
     """
     total_times_one = np.zeros_like(nval)
-    nval_over_time = np.zeros((sum(sizeM),timeOut))
+    nval_over_time = np.zeros((sum(sizeM),maxTime))
     sizeMax = sum(sizeM)    
     prob =  1. / (1+tau)
 
@@ -665,14 +713,14 @@ def poisson(sizeM,timeOut, tau, nval, jCon, thresh, external, fireCount, indiNeu
     inIterStart = 0
     inIterMax   = sizeM[1] 
     inIter      = inIterStart       #iterates through sequence below
-
     if randomProcess: 
         exSequence  = np.random.randint(0, sizeM[0], sizeM[0])
         inSequence  = np.random.randint(sizeM[0],sizeMax,sizeM[1])
     else:
         exSequence  = np.random.permutation(sizeM[0])
         inSequence  = np.random.permutation(np.arange(sizeM[0],sizeMax))
-    while exTime < timeOut:
+
+    while exTime < maxTime:
         nval_old = nval.copy()
         if np.random.uniform(0,1)<prob:
             iterator = exSequence[exIter]
@@ -701,7 +749,6 @@ def poisson(sizeM,timeOut, tau, nval, jCon, thresh, external, fireCount, indiNeu
             iterator = inSequence[inIter]
             overThresh = timestepMat (iterator, nval, jCon, thresh, external, fireCount)
             if overThresh >= 0:
-                #print("!")
                 nval_over_time[iterator,inTime] += 1
             inIter += 1
             if inIter >= inIterMax:
@@ -712,15 +759,10 @@ def poisson(sizeM,timeOut, tau, nval, jCon, thresh, external, fireCount, indiNeu
                     inSequence  = np.random.randint(sizeM[0],sizeMax,sizeM[1])
                 else:
                     inSequence = np.random.permutation(np.arange(sizeM[0],sizeMax))
-            #if nval[iterator] == 1:
-                #print("?")
-                #nval_over_time[iterator,inTime] = 1
-
-
     return nval_over_time
 
 
-def poissRun(jCon, thresh, external, timeOut,
+def poissRun(jCon, thresh, external, maxTime,
     sizeM, extM, K, mean0, tau, randomProcess, recNum = 15):
     """
     Runs a mix between poisson and sequential Code
@@ -728,17 +770,17 @@ def poissRun(jCon, thresh, external, timeOut,
     Introduces analyze tools
 
 
-    @param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
-    @param      jCon    : Connection Matrix 
-    @param      thresh  : Stores Thresholds 
-    @param      external: Input from external Neurons 
-    @param      fireCount    : records how often a neuron switches to active state 
-    @param      timeOut : Controls runtime
-    @param      sizeM   : Contains information over the network size
-    @param      tau     : How often inhibitory neurons fireCount compared to excitatory
-    @param      recNum  : How many neurons are recorded 
+    :param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
+    :param      jCon    : Connection Matrix 
+    :param      thresh  : Stores Thresholds 
+    :param      external: Input from external Neurons 
+    :param      fireCount    : records how often a neuron switches to active state 
+    :param      maxTime : Controls runtime
+    :param      sizeM   : Contains information over the network size
+    :param      tau     : How often inhibitory neurons fireCount compared to excitatory
+    :param      recNum  : How many neurons are recorded 
 
-    @return     Returns indiNeuronsDetailed and total_times_one which analyze individual (ie subset of) neurons and all neurons respectively
+    :return     Returns indiNeuronsDetailed and total_times_one which analyze individual (ie subset of) neurons and all neurons respectively
 
     """
 
@@ -747,7 +789,7 @@ def poissRun(jCon, thresh, external, timeOut,
     total_times_one = np.zeros_like(nval)
     indiNeuronsDetailed = [[] for i in range(recNum)] 
 
-    nval_over_time = poisson(sizeM,timeOut, tau, nval, jCon, thresh, external, fireCount, indiNeuronsDetailed, randomProcess, recNum)
+    nval_over_time = poissoni(sizeM,maxTime, tau, nval, jCon, thresh, external, fireCount, indiNeuronsDetailed, randomProcess, recNum)
     total_times_one = fireCount
     return indiNeuronsDetailed, total_times_one, fireCount, nval_over_time
     
@@ -843,25 +885,22 @@ def testRoutine(
             extratitle += "Permute"
 
     captiontxt += " " + extracap 
-    titletxt += "_" + extratitle
+    titletxt += "_" + extratitle if extratitle != "" else ""
     timeend = time.time()
     print("runtime of routine")
     timeOut(timeend - timestart)
     
     #print(indiNeuronsDetailed)
+    mean
     print(np.mean(np.array(total_times_one)))
     listing = []
     for row in nval_over_time:
         listing.append(sum(row))
     print(np.mean(listing))
 
-    infoDict = {
-        "timer"     : timer, 
-        "threshM"   : threshM,
-        "titletxt"  : titletxt,
-        "captiontxt": captiontxt,
-        }
     saveResults(valueFolder, infoDict, indiNeuronsDetailed, fireCount, nval_over_time)
+    
+    indiNeuronsDetailed, fireCount, nval_over_time, infoDict = recoverResults(valueFolder)
     
     ### Plotting Routine ###
     if pTot:
@@ -877,10 +916,19 @@ def testRoutine(
         #print(sum(nval_over_time))
         plotDots(figfolder, nval_over_time, timer, titletxt, captiontxt)
 
+def mostRecent(vfolder):
+    paths = list(vfolder.glob('**'))
+    names =  [path.name for path in paths]
+    filtered = [name for name in names if "testreihe" in name]
+    return max(filtered)
 def afterSimulationAnalysis():
-    loadTimeStr = "191110_2029" #create a "find most recent" function
-    valuefoldername = "ValueVault/testreihe_"
-    valueFolder =  Path(valuefoldername + loadTimeStr)
+    useMostRecent = 1
+    vfolder = Path("ValueVault")
+    if useMostRecent:
+        loadTimeStr = mostRecent(vfolder)
+    else:
+        loadTimeStr = "testreihe_191111_1038" #create a "find most recent" function
+    valueFolder =  vfolder / loadTimeStr
 
     timestr = time.strftime("%y%m%d_%H%M")
     figfolder = "figs/testreihe_" + timestr
@@ -929,9 +977,9 @@ def parameters():
     mean0   = 0.1
     K       = 1000
     ### Deviations ###
-    timer   = 500
-    K       = 1000
-    size    = 10000
+    timer   = 10
+    K       = 100
+    size    = 1000
     sizeE   = size
     sizeI   = size
 
@@ -948,11 +996,11 @@ def main():
     #troubleshootParamters()
 
     #Bools for if should be plotted or not
-    pTot        = 1
+    pTot        = 0
     pIndi       = 0
-    pIndiExt    = 1
-    pDist       = 1
-    pDots       = 1
+    pIndiExt    = 0
+    pDist       = 0
+    pDots       = 0
     #Recording Specification(should be reviewed):
     recNum      = 100
 
