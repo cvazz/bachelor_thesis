@@ -125,7 +125,7 @@ def timeOut(timediff):
 
 def saveResults(valueFolder, infoDict, indiNeuronsDetailed, fireCount, nval_over_time):
     if not valueFolder.exists():
-        valueFolder.mkdir()
+        valueFolder.mkdir(parents = True)
 
     #loop next time
     indiNametxt     = "indiNeurons"
@@ -268,31 +268,48 @@ def plotIndiExtended(figfolder, indiNeuronsDetailed, fireCount, threshM, recNum,
     showRange = 15
     exORin = 0
     level = 0
-    fig, axarr = plt.subplots(2,sharex=True,)
+    """
+    fig, axarr  = plt.subplots(2,sharex=True,)
+    ax1         = axarr[0]
+    ax2         = axarr[1]
+    """
+    fig = plt.figure(constrained_layout = False, figsize = (10,10))
+    h_ratio = 10-showRange/2 if 10-showRange/2>2 else 2
+    gs  = fig.add_gridspec(ncols=1,nrows=2,height_ratios=[h_ratio,1])
+    ax1 = fig.add_subplot(gs[0,:])
+    ax2 = fig.add_subplot(gs[1,:], sharex =ax1)
+    plt.setp(ax1.get_xticklabels(), visible=False)
+    plt.setp(ax2.get_yticklabels(), visible=False)
+    ax2.set_yticks([])
     dataspike = []
+    lengthOfLists =  [len(row) for row in indiNeuronsDetailed]
+    minMaxDiff = np.max(lengthOfLists) - np.min(lengthOfLists)
+    if minMaxDiff:
+        print("WARNING: Asymmetric Growth of individual neurons recorded")
+        captiontxt += (f"\n  unequal size of neurons, difference between max" +
+                f" and min = {minMaxDiff}")
+    lengthOfPlot = max(lengthOfLists)
     for i in range(level, showRange + level):
         rec = np.transpose(indiNeuronsDetailed[i])
-        #rec = np.transpose(rec)
         xs = range(0,len(rec[1]))
-        consta = [threshM[exORin] for x in range(len(rec[1]))]
         col=['red', 'green', 'blue']
         spike = [1 if rec[1][j] > threshM[exORin] else 0 for j in range(len(rec[1]))]
+        spike += [0.3 for x in range(lengthOfPlot-len(rec[1]))]
         dataspike.append(spike)
         for j in range(len(rec)):
-            axarr[0].plot(xs,rec[j], color = col[j], linewidth = .8)
-    try: 
-        axarr[1].imshow(dataspike, aspect='auto', cmap='Greys', interpolation='nearest')
-    except TypeError:
-        print(dataspike)
-        raise TypeError
+            ax1.plot(xs,rec[j], color = col[j], linewidth = .8)
+    ax2.imshow(dataspike, aspect='auto', cmap='Greys', interpolation='nearest')
 
-    axarr[0].plot(xs,consta, color = "black", linewidth = 2.0)
-    fig.text(.5,.05,captiontxt, ha='center')
-    fig.subplots_adjust(bottom=0.2)
-    plt.title('Individual Neuron Firing Pattern')
-    plt.xlabel('time')
-    axarr[0].set(ylabel = 'Current')
-    axarr[1].set(ylabel = 'Spike')
+    xs = range(lengthOfPlot)
+    consta = [threshM[exORin] for x in range(lengthOfPlot)]
+    ax1.plot(xs,consta, color = "black", linewidth = 2.0)
+    #fig.text(.5,.05,captiontxt, ha='center')
+    #fig.subplots_adjust(bottom=0.3)
+    fig.suptitle('Individual Neuron Firing Pattern', fontsize= 20)
+    labelX = "time"
+    plt.xlabel(labelX + '\n\n' + captiontxt)
+    ax1.set(ylabel = 'Current')
+    ax2.set(ylabel = 'Spike')
 
     folder = checkFolder(figfolder)
     name = "IndiExt"
@@ -300,6 +317,7 @@ def plotIndiExtended(figfolder, indiNeuronsDetailed, fireCount, threshM, recNum,
     plt.savefig(fullname)
     plotMessage(fullname)
     #plt.show()
+    plt.close(fig)
 
 
 def analyzeTau(rec):
@@ -810,7 +828,7 @@ def testRoutine(
             jCon, thresh, external, timer ,sizeM, extM, K, mean0, recNum)
         extracap    = "sequence 1 to N"
         extratitle  = "sequ"
-    if doPoiss:
+    if doPoiss or doRand:
         randomProcess = doRand
         indiNeuronsDetailed,total_times_one, fireCount, nval_over_time= poissRun(
             jCon, thresh, external, timer, sizeM, extM,
@@ -911,9 +929,9 @@ def parameters():
     mean0   = 0.1
     K       = 1000
     ### Deviations ###
-    timer   = 50
+    timer   = 500
     K       = 1000
-    size    = 1000
+    size    = 10000
     sizeE   = size
     sizeI   = size
 
