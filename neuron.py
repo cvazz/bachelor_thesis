@@ -917,10 +917,19 @@ def testRoutine(
         plotDots(figfolder, nval_over_time, timer, titletxt, captiontxt)
 
 def mostRecent(vfolder):
+    """
+    Finds last added "testreihe" in given folder
+    
+    :param vfolder: folder to look for testreihe
+    :type vfolder: class: 'pathlib.PosixPath'
+    :return: name of "max" testreihe
+    :rtype: string
+    """
     paths = list(vfolder.glob('**'))
     names =  [path.name for path in paths]
     filtered = [name for name in names if "testreihe" in name]
     return max(filtered)
+
 def afterSimulationAnalysis():
     useMostRecent = 1
     vfolder = Path("ValueVault")
