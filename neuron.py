@@ -8,7 +8,9 @@ from scipy import special
 import scipy.integrate as integrate
 
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from scipy.stats import gaussian_kde
+from collections import OrderedDict #grouped Labels
 
 from pathlib import Path
 import pickle
@@ -20,7 +22,8 @@ import mathsim as msim
 ################################################################################
 ############################## Global Variables ################################
 ################################################################################
-
+savefig_GLOBAL = 1
+showPlots_GLOBAL = 0
 load_jConMatrix_from_can_GLOBAL = 0
 plotLoc_print2console_GLOBAL = 1
 ################################################################################
@@ -69,6 +72,20 @@ def jConTinker(sizeM, jVal,K):
             np.save(loc, jCon)
             pass
     return jCon
+
+def mostRecent(vfolder):
+    """
+    Finds last added "testreihe" in given folder
+    
+    :param vfolder: folder to look for testreihe
+    :type vfolder: class: 'pathlib.PosixPath'
+    :return: name of "max" testreihe
+    :rtype: string
+    """
+    paths = list(vfolder.glob('**'))
+    names =  [path.name for path in paths]
+    filtered = [name for name in names if "testreihe" in name]
+    return max(filtered)
 
 def testthename(name,fileEnding):
     workinName = name + "." + fileEnding
@@ -133,7 +150,7 @@ def timeOut(timediff):
     print(printstring)
 
 def saveResults(valueFolder, indiNeuronsDetailed, fireCount, nval_over_time, 
-                timer, threshM, titletext, captiontxt):
+                timer, threshM, titletxt, captiontxt):
     """
     Save recordings of output to file.
     
@@ -158,7 +175,7 @@ def saveResults(valueFolder, indiNeuronsDetailed, fireCount, nval_over_time,
     if len(uniq) > 2:
         print(f"Warning nval_over_time has recorded non boolean values,"+
         " which have not been saved")
-        print (uniq)
+        print (np.unique(nval_over_time, return_counts=1))
     for iter in np.ndindex(np.shape(nval_over_time)):
         if nval_over_time[iter]:
             loc.append(iter)
@@ -191,6 +208,7 @@ def recoverResults(valueFolder):
     Missing functionality: so far, does only take neurons with preset names
 
     :param valueFolder: |valueFolder_desc|
+    :return: indiNeuronsDetailed, fireCount, 
     """
 
     indiNametxt = "indiNeurons"
@@ -218,6 +236,7 @@ def recoverResults(valueFolder):
         nval_OT[iter] = 1
 
     return indiNeuronsDetailed, fireCount, nval_OT, infoDict
+
 ################################################################################
 ############################# Plotting Functions ###############################
 ################################################################################
@@ -236,9 +255,6 @@ def plotTotal(figfolder, total_times_one, fireCount, timer, titletxt, captiontxt
     meanTot = np.mean(total_times_one)
     if meanTot == 0:
         print("not a single flip for the following starting values")
-        txt = f'Network Size: {sizeMax} \t K: {K} \t mean_0: {mean0} \n total time: {timer}   jE: {jE}\t jI: {jI}\t '
-        print(txt)
-        return 
     total_times_one = total_times_one/meanTot
     density = gaussian_kde(total_times_one)
     xs = np.linspace(0,3)
@@ -256,16 +272,17 @@ def plotTotal(figfolder, total_times_one, fireCount, timer, titletxt, captiontxt
     folder = checkFolder(figfolder)
     name = "density"
     fullname = testthename(folder +name+titletxt , "png")
-    plt.savefig(fullname)
-    plotMessage(fullname)
+    if savefig_GLOBAL:
+        plt.savefig(fullname)
+        plotMessage(fullname)
     #plt.show()
     plt.close(fig)
     
     histfig = plt.figure()
     uniq = len(np.unique(total_times_one))
     binsize = 10 if uniq <10 else uniq if uniq<timer else timer
-    plt.hist(total_times_one, bins = binsize)
-    plt.title('Histogram of Fire Rate Distribution')
+    plt.hist(total_times_one, bins = binsize, weights = np.ones(len(total_times_one))/len(total_times_one))
+    plt.title('Fire Rate Distribution')
     plt.xlabel('fireCount rate/mean')
     plt.ylabel('density')
     histfig.text(.5,.05,captiontxt, ha='center')
@@ -274,9 +291,11 @@ def plotTotal(figfolder, total_times_one, fireCount, timer, titletxt, captiontxt
     folder = checkFolder(figfolder)
     name = "histogram"
     fullname = testthename(folder +name+titletxt , "png")
-    plt.savefig(fullname)
-    plotMessage(fullname)
-    #plt.show()
+    if savefig_GLOBAL:
+        plt.savefig(fullname)
+        plotMessage(fullname)
+    if showPlots_GLOBAL:
+        plt.show()
     plt.close(histfig)
 
 def plotIndi(figfolder, indiNeuronsDetailed, fireCount, threshM, titletxt, captiontxt):
@@ -285,7 +304,8 @@ def plotIndi(figfolder, indiNeuronsDetailed, fireCount, threshM, titletxt, capti
 
     Shows positive, negative and total_times_one input for several neurons 
 
-    :param indiNeuronsDetailed: Contains pos, neg, and total_times_one value for a subgroup of neurons at each timestep
+    :param indiNeuronsDetailed: Contains pos, neg, and total_times_one value 
+                                for a subgroup of neurons at each timestep
 
     """
     showRange = 5
@@ -312,13 +332,16 @@ def plotIndi(figfolder, indiNeuronsDetailed, fireCount, threshM, titletxt, capti
     folder = checkFolder(figfolder)
     name = "Indi"
     fullname = testthename(folder +name+titletxt , "png")
-    plt.savefig(fullname)
-    plotMessage(fullname)
-    #plt.show()
+    if savefig_GLOBAL:
+        plt.savefig(fullname)
+        plotMessage(fullname)
+    if showPlots_GLOBAL:
+        plt.show()
     plt.close(fig)
 
 
-def plotIndiExtended(figfolder, indiNeuronsDetailed, fireCount, threshM, recNum, titletxt, captiontxt):
+def plotIndiExtended(figfolder, indiNeuronsDetailed, fireCount, threshM,
+    showRange, titletxt, captiontxt):
     showRange = 15
     exORin = 0
     level = 0
@@ -346,12 +369,15 @@ def plotIndiExtended(figfolder, indiNeuronsDetailed, fireCount, threshM, recNum,
     for i in range(level, showRange + level):
         rec = np.transpose(indiNeuronsDetailed[i])
         xs = range(0,len(rec[1]))
-        col=['red', 'green', 'blue']
+        col=['blue', 'green', 'red']
+        labelNames = ["positive", "total sum", "negative"]
+        lines=[[] for x in range(showRange)]
         spike = [1 if rec[1][j] > threshM[exORin] else 0 for j in range(len(rec[1]))]
         spike += [0.3 for x in range(lengthOfPlot-len(rec[1]))]
         dataspike.append(spike)
         for j in range(len(rec)):
-            ax1.plot(xs,rec[j], color = col[j], linewidth = .8)
+            lines[i].append(ax1.plot(xs,rec[j], color = col[j],
+                label= labelNames[j], linewidth = .8))
     ax2.imshow(dataspike, aspect='auto', cmap='Greys', interpolation='nearest')
 
     xs = range(lengthOfPlot)
@@ -363,24 +389,43 @@ def plotIndiExtended(figfolder, indiNeuronsDetailed, fireCount, threshM, recNum,
     labelX = "time"
     plt.xlabel(labelX + '\n\n' + captiontxt)
     ax1.set(ylabel = 'Current')
+    handles, labels = ax1.get_legend_handles_labels()
+    by_label = OrderedDict(zip(labels, handles))
+    ax1.legend(by_label.values(), by_label.keys())
     ax2.set(ylabel = 'Spike')
+    #Labels
+    #first_legend = plt.legend(handles=[lines[0]], loc='lower right')
+    #ax1 = plt.gca().add_artist(first_legend)
+    #aplt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc='lower left',   
+           #ncol=2, mode="expand", borderaxespad=0.)
+
 
     folder = checkFolder(figfolder)
     name = "IndiExt"
     fullname = testthename(folder +name+titletxt , "png")
-    plt.savefig(fullname)
-    plotMessage(fullname)
-    #plt.show()
+    if savefig_GLOBAL:
+        plt.savefig(fullname)
+        plotMessage(fullname)
+    if showPlots_GLOBAL:
+        plt.show()
     plt.close(fig)
 
 
 def analyzeTau(rec):
     """
-    calculates fire rate of [0,0,0,1,0,1,0,0,1,1,1,1,1,1,0,1] as [1, 2, 1]
+    Calculates Intervals between Firing
+    
+    Example: Calculates fire rate of [0,0,0,1,0,1,0,0,1,1,1,1,1,1,0,1]
+    as [1, 2, 1]
+
+    :param rec: 
+    :type rec: list (binary)
     """
     dist =[]
     buff = 1
     counter = 0
+    if not type(rec) == list:
+        rec = rec.tolist()
     while rec[0] == 0:
         rec.pop(0)
         if not rec:
@@ -398,35 +443,39 @@ def analyzeTau(rec):
                 buff = 1
     return dist
 
-def plotDistBetweenTwoFires(figfolder, nval_over_time, timer, titletxt, captiontxt):
+def plotInterspike(figfolder, nval_over_time, timer, titletxt, captiontxt):
     """
     see analyze for calculation
     """
-
+    display_Log = 0
     diff = []
-    for rec in np.transpose(nval_over_time):
+    for rec in nval_over_time:
         a = analyzeTau(rec.tolist())
         if a: 
             diff += a
 
-
-    histfig = plt.figure()
+    extratxt = ""
+    histfig = plt.figure(tight_layout = True)
     uniq = len(np.unique(diff))
     binsize = 10 if uniq <10 else uniq if uniq<timer else timer
-    plt.hist(diff, bins = binsize)
-    plt.title('Histogram of Fire Intervals V2')
-    plt.xlabel('time between firing two times')
+    captiontxt += extratxt
+
+    plt.hist(diff, bins = binsize, weights = np.ones(len(diff))/len(diff))
+    plt.title('Interspike Interval')
+    plt.xlabel('time\n\n' + captiontxt)
     plt.ylabel('density')
-    histfig.text(.5,.05,captiontxt, ha='center')
-    histfig.subplots_adjust(bottom=0.2)
+    if display_Log:
+        plt.yscale('log', nonposy='clip')
 
 
     folder = checkFolder(figfolder)
-    name = "intervalHist2"
+    name = "intervalHist"
     fullname = testthename(folder +name+titletxt , "png")
-    plt.savefig(fullname)
-    plotMessage(fullname)
-    #plt.show()
+    if savefig_GLOBAL:
+        plt.savefig(fullname)
+        plotMessage(fullname)
+    if showPlots_GLOBAL:
+        plt.show()
     plt.close(histfig)
 
 def plotDots(figfolder, nval_over_time, timer, titletxt, captiontxt):
@@ -438,7 +487,14 @@ def plotDots(figfolder, nval_over_time, timer, titletxt, captiontxt):
     ax.imshow(nval_over_time, aspect='auto', cmap='Greys', interpolation='nearest')
     plt.title('Neurons firing over time')
     plt.xlabel('time')
-    plt.ylabel('neurons')
+    plt.ylabel('neurons\n')
+    ax.set_yticks([])
+    plt.text(0.1, 0.65, "excitatory", fontsize=8, rotation=90,
+        transform=plt.gcf().transFigure)
+    plt.text(0.1, 0.33, "inhibitory", fontsize=8, rotation=90,
+        transform=plt.gcf().transFigure)
+    ax.set_ylim(ymax=0)
+    ax.set_xlim(xmin=0)
     fig.text(.5,.05,captiontxt, ha='center')
     fig.subplots_adjust(bottom=0.2)
 
@@ -446,9 +502,17 @@ def plotDots(figfolder, nval_over_time, timer, titletxt, captiontxt):
     folder = checkFolder(figfolder)
     name = "dots"
     fullname = testthename(folder +name+titletxt , "png")
-    plt.savefig(fullname)
-    plotMessage(fullname)
-    #plt.show()
+    # ax.annotate('test', xy=(0.0, 0.75), xytext=(-0.1, 0.750), xycoords='axes fraction', 
+    #         fontsize=12, ha='center', va='bottom',
+    #         bbox=dict(boxstyle='square', fc='white'),
+    #         arrowprops=dict(arrowstyle='-[, widthB=7.0, lengthB=1.5', lw=2.0))
+    plt.axhspan(0, len(nval_over_time)/2, facecolor='blue', alpha=0.3)
+    plt.axhspan(len(nval_over_time)/2,len(nval_over_time), facecolor='red', alpha=0.3)
+    if savefig_GLOBAL:
+        plt.savefig(fullname)
+        plotMessage(fullname)
+    if showPlots_GLOBAL:
+        plt.show()
     plt.close(fig)
 ################################################################################
 ############################ Creating Functions ################################
@@ -685,6 +749,7 @@ def poissoni(sizeM, maxTime, tau, nval, jCon, thresh, external, fireCount, indiN
     Each round a new permutation of range is drawn
     Currently only supports recording individual excitatory neurons for indiNeuronsDetailed
 
+    !Should tau be larger than one, double counting could happen
 
     :param      maxTime : Controls runtime
     :param      sizeM   : Contains information over the network size
@@ -703,6 +768,9 @@ def poissoni(sizeM, maxTime, tau, nval, jCon, thresh, external, fireCount, indiN
     nval_over_time = np.zeros((sum(sizeM),maxTime))
     sizeMax = sum(sizeM)    
     prob =  1. / (1+tau)
+
+    if tau > 1:
+        print("Warning: tau larger than one could result in recording two events at once")
 
     exTime      = 0
     exIterStart = 0
@@ -785,6 +853,7 @@ def poissRun(jCon, thresh, external, maxTime,
     """
 
     nval = createNval(sizeM, extM, K, mean0)  
+    np.savetxt(f'nval{mean0*100}.csv',nval,delimiter=',')
     fireCount = np.zeros(np.shape(nval)) #Fire rate for indivual neuron
     total_times_one = np.zeros_like(nval)
     indiNeuronsDetailed = [[] for i in range(recNum)] 
@@ -853,13 +922,16 @@ def testRoutine(
     jCon, thresh, external, figfolder, valueFolder,
     jE, jI, titletxt = "", captiontxt = "",
     doSequ = 1, doPoiss = 0, doRand = 0,
-    pTot=0, pIndi=0, pIndiExt= 0, pDist=0,  pDots=0):
+    pTot=0, pIndi=0, pIndiExt= 0, pInterspike=0,  pDots=0):
     """
     executes the differen sequences
-    """
-
+    """ 
     sizeMax = sizeM[0] + sizeM[1]
     np.set_printoptions(edgeitems = 10)
+    titletxt = f'_S_{str(sizeMax)[:1]}e{int(np.log10(sizeMax))}_K_{(K)}_m0_{str(mean0)[2:]}'# \njE: {jE}   jI: {jI} '
+    captiontxt = f'Network Size: {sizeMax}  K: {K}  mean_0: {mean0} \n\
+        time: {timer}   jE: {jE}   jI: {jI} ' 
+
 
     print("run")
     timestart = time.time()
@@ -891,17 +963,25 @@ def testRoutine(
     timeOut(timeend - timestart)
     
     #print(indiNeuronsDetailed)
-    mean
+    print("mean")
     print(np.mean(np.array(total_times_one)))
     listing = []
     for row in nval_over_time:
         listing.append(sum(row))
+    print("listing")
     print(np.mean(listing))
 
-    saveResults(valueFolder, infoDict, indiNeuronsDetailed, fireCount, nval_over_time)
+    saveResults(valueFolder, indiNeuronsDetailed, fireCount, nval_over_time, 
+                timer, threshM, titletxt, captiontxt)
     
     indiNeuronsDetailed, fireCount, nval_over_time, infoDict = recoverResults(valueFolder)
     
+    meanOT = np.mean(total_times_one[:int(sizeMax/2)])/timer
+    print("meanOT")
+    print(meanOT)
+    print("is this the same?")
+    print(np.mean(nval_over_time[:sizeM[0],-5:]))
+    print(np.mean(nval_over_time[sizeM[0]:,-5:]))
     ### Plotting Routine ###
     if pTot:
         plotTotal(figfolder, total_times_one,fireCount, timer, titletxt, captiontxt)
@@ -910,25 +990,20 @@ def testRoutine(
     if pIndiExt:
         #print(np.sum(indiNeuronsDetailed[1]))
         plotIndiExtended(figfolder,indiNeuronsDetailed,fireCount, threshM, recNum, titletxt, captiontxt)
-    if pDist:
-        plotDistBetweenTwoFires(figfolder, nval_over_time, timer, titletxt, captiontxt)
+    if pInterspike:
+        plotInterspike(figfolder, nval_over_time, timer, titletxt, captiontxt)
     if pDots:
         #print(sum(nval_over_time))
         plotDots(figfolder, nval_over_time, timer, titletxt, captiontxt)
-
-def mostRecent(vfolder):
-    """
-    Finds last added "testreihe" in given folder
     
-    :param vfolder: folder to look for testreihe
-    :type vfolder: class: 'pathlib.PosixPath'
-    :return: name of "max" testreihe
-    :rtype: string
-    """
-    paths = list(vfolder.glob('**'))
-    names =  [path.name for path in paths]
-    filtered = [name for name in names if "testreihe" in name]
-    return max(filtered)
+
+
+    del indiNeuronsDetailed
+    del fireCount
+    del nval_over_time
+    del total_times_one   
+    return meanOT
+
 
 def afterSimulationAnalysis():
     useMostRecent = 1
@@ -942,6 +1017,7 @@ def afterSimulationAnalysis():
     timestr = time.strftime("%y%m%d_%H%M")
     figfolder = "figs/testreihe_" + timestr
 
+    showRange = 15
     indiNeuronsDetailed, fireCount, nval_over_time, infoDict = recoverResults(valueFolder)
     total_times_one = rowSums((nval_over_time))
     print(np.mean(total_times_one))
@@ -953,22 +1029,20 @@ def afterSimulationAnalysis():
     threshM     = infoDict["threshM"]
     timer       = infoDict["timer"]
 
-
-    print(np.mean(total_times_one[:1000])/timer)
     ### Plotting Routine ###
     pTot        = 0
     pIndi       = 0
     pIndiExt    = 0
-    pDist       = 0
-    pDots       = 0
+    pInterspike = 0
+    pDots       = 1
     if pTot:
         plotTotal(figfolder, total_times_one,fireCount, timer, titletxt, captiontxt)
     if pIndi:
         plotIndi(figfolder,indiNeuronsDetailed,fireCount, threshM, titletxt, captiontxt)
     if pIndiExt:
-        plotIndiExtended(figfolder,indiNeuronsDetailed,fireCount, threshM, recNum, titletxt, captiontxt)
-    if pDist:
-        plotDistBetweenTwoFires(figfolder, nval_over_time, timer, titletxt, captiontxt)
+        plotIndiExtended(figfolder,indiNeuronsDetailed,fireCount, threshM, showRange, titletxt, captiontxt)
+    if pInterspike:
+        plotInterspike(figfolder, nval_over_time, timer, titletxt, captiontxt)
     if pDots:
         plotDots(figfolder, nval_over_time, timer, titletxt, captiontxt)
 
@@ -986,9 +1060,9 @@ def parameters():
     mean0   = 0.1
     K       = 1000
     ### Deviations ###
-    timer   = 10
-    K       = 100
-    size    = 1000
+    timer   = 300
+    K       = 1000
+    size    = 10000
     sizeE   = size
     sizeI   = size
 
@@ -1005,11 +1079,11 @@ def main():
     #troubleshootParamters()
 
     #Bools for if should be plotted or not
-    pTot        = 0
+    pTot        = 1
+    pIndiExt    = 1
+    pInterspike = 1
+    pDots       = 1
     pIndi       = 0
-    pIndiExt    = 0
-    pDist       = 0
-    pDots       = 0
     #Recording Specification(should be reviewed):
     recNum      = 100
 
@@ -1027,19 +1101,46 @@ def main():
         threshE, threshI)
 
     sizeMax = np.sum(sizeM)
+    #CURRENTLY BEING OVERWRITTEN
     titletxt = f'_S_{str(sizeMax)[:1]}e{int(np.log10(sizeMax))}_K_{(K)}'#_m0_{str(mean0)[2:]}'# \njE: {jE}   jI: {jI} '
     captiontxt = f'Network Size: {sizeMax}  K: {K}  mean_0: {mean0} \n\
         time: {timer}   jE: {jE}   jI: {jI} ' + extratxt
 
+    # mean100 = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08,
+    #         0.09, 0.1  , 0.125, 0.15 , 0.175, 0.2  , 0.225, 0.25 , 0.275] 
+    # mean100 = [0.01, 0.04]# 0.1, 0.2]
+
+    # meanOT = []
+    # for i,mean0_itt in enumerate(mean100):
+        # meanOT.append(
     testRoutine(
         timer, K, mean0, tau,
         sizeM, threshM, extM, recNum,
         jCon, thresh, external, figfolder, valueFolder,
         jE, jI,titletxt, captiontxt,
         doSequ, doPoiss, doRand,
-        pTot, pIndi, pIndiExt, pDist,pDots)
-
-
+        pTot, pIndi, pIndiExt, pInterspike,pDots)
+        # print(meanOT)
+    doSequ      = 0
+    doPoiss     = 0 
+    doRand      = 1 
+    
+    testRoutine(
+        timer, K, mean0, tau,
+        sizeM, threshM, extM, recNum,
+        jCon, thresh, external, figfolder, valueFolder,
+        jE, jI,titletxt, captiontxt,
+        doSequ, doPoiss, doRand,
+        pTot, pIndi, pIndiExt, pInterspike,pDots)
+    # sizeM, threshM, extM, jCon, thresh, external = prepare(
+    #     K, mean0, tau, sizeE, sizeI, extE, extI, jE, jI,
+    #     threshE, threshI)
+    # mean100+=meanOT
+    # mean100 = np.array(mean100)
+    # mean100.shape = (2,len(meanOT))
+    # print(mean100)
+    # np.save("mean0vsmeanOT",mean100)
+    
 if __name__ == "__main__":
     #afterSimulationAnalysis()
     main()
