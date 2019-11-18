@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import numpy as np
 from scipy import special
@@ -14,11 +13,31 @@ import utils
 ###############################################################################
 ############################### Global Variables ##############################
 ###############################################################################
-savefig_GLOBAL = 1
-showPlots_GLOBAL = 0
+savefig_GLOBAL      = 1
+showPlots_GLOBAL    = 0
+figfolder_GLOBAL    = ""
+titletxt_GLOBAL     = ""
+captiontxt_GLOBAL   = ""
 
+###############################################################################
+############################## Plotting Functions #############################
+###############################################################################
 
-def mean_distri(figfolder, total_times_one, fireCount, timer, titletxt, captiontxt):
+def finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig):
+    plt.title(title_of_plot)
+    plt.xlabel(xlabel_of_plot + '\n\n'+ captiontxt_GLOBAL)
+    plt.ylabel(ylabel_of_plot)
+    folder = utils.checkFolder(figfolder_GLOBAL)
+    fullname = utils.testTheName(folder +name_of_plot+titletxt_GLOBAL, "png")
+    plt.legend()
+    if savefig_GLOBAL:
+        plt.savefig(fullname)
+        utils.plotMessage(fullname)
+    if showPlots_GLOBAL:
+        plt.show()
+    plt.close(fig)
+
+def activation_distribution(figfolder, total_times_one, fireCount, timer, titletxt, captiontxt):
     """
     plots distribution of firing pattern in relation to mean firing pattern
 
@@ -30,43 +49,41 @@ def mean_distri(figfolder, total_times_one, fireCount, timer, titletxt, captiont
     """
     total_times_one = np.array(total_times_one)
     meanTot = np.mean(total_times_one)
-    if meanTot == 0:
-        print("not a single flip for the following starting values")
-    total_times_one = total_times_one/meanTot
-    density = gaussian_kde(total_times_one)
-    xs = np.linspace(0,3)
-    density.covariance_factor = lambda : .1
-    density._compute_covariance()
-    fig = plt.figure()
-    plt.plot(xs,density(xs))
+    # if meanTot == 0:
+    #     print("not a single flip for the following starting values")
+    # total_times_one = total_times_one/meanTot
+    # density = gaussian_kde(total_times_one)
+    # xs = np.linspace(0,3)
+    # density.covariance_factor = lambda : .1
+    # density._compute_covariance()
+    # fig = plt.figure()
+    # plt.plot(xs,density(xs))
 
-    plt.title('Fire Rate Distribution')
-    plt.xlabel('Fire rate/mean')
-    plt.ylabel('Density')
-    fig.text(.5,.05,captiontxt, ha='center')
-    fig.subplots_adjust(bottom=0.2)
+    # plt.title('Fire Rate Distribution')
+    # plt.xlabel('Fire rate/mean')
+    # plt.ylabel('Density')
+    # fig.text(.5,.05,captiontxt, ha='center')
+    # fig.subplots_adjust(bottom=0.2)
 
-    folder = utils.checkFolder(figfolder)
-    name = "density"
-    fullname = utils.testTheName(folder +name+titletxt , "png")
-    if savefig_GLOBAL:
-        plt.savefig(fullname)
-        utils.plotMessage(fullname)
-    #plt.show()
-    plt.close(fig)
+    # folder = utils.checkFolder(figfolder)
+    # name = "density"
+    # fullname = utils.testTheName(folder +name+titletxt , "png")
+    # if savefig_GLOBAL:
+    #     plt.savefig(fullname)
+    #     utils.plotMessage(fullname)
+    # #plt.show()
+    # plt.close(fig)
     
-    histfig = plt.figure()
+    histfig = plt.figure(tight_layout = True)
     uniq = len(np.unique(total_times_one))
     binsize = 10 if uniq <10 else uniq if uniq<timer else timer
     plt.hist(total_times_one, bins = binsize, weights = np.ones(len(total_times_one))/len(total_times_one))
     plt.title('Fire Rate Distribution')
-    plt.xlabel('fireCount rate/mean')
+    plt.xlabel('fireCount rate/mean\n\n'+captiontxt)
     plt.ylabel('density')
-    histfig.text(.5,.05,captiontxt, ha='center')
-    histfig.subplots_adjust(bottom=0.2)
 
     folder = utils.checkFolder(figfolder)
-    name = "histogram"
+    name = "ActiDist"
     fullname = utils.testTheName(folder +name+titletxt , "png")
     if savefig_GLOBAL:
         plt.savefig(fullname)
@@ -258,32 +275,28 @@ def interspike(figfolder, nval_over_time, timer, titletxt, captiontxt,display_Lo
 
 def dots(figfolder, nval_over_time, timer, titletxt, captiontxt):
 
-    fig = plt.figure()
+    fig = plt.figure(tight_layout = True)
     ax = fig.add_subplot(111)
     record =np.transpose(nval_over_time)
     #ax.imshow(record, aspect='auto', cmap='Greys', interpolation='nearest')
     ax.imshow(nval_over_time, aspect='auto', cmap='Greys', interpolation='nearest')
     plt.title('Neurons firing over time')
-    plt.xlabel('time')
+    plt.xlabel('time\n\n'+ captiontxt)
     plt.ylabel('neurons\n')
     ax.set_yticks([])
-    plt.text(0.1, 0.65, "excitatory", fontsize=8, rotation=90,
+    plt.text(0.06, 0.7, "excitatory", fontsize=8, rotation=90,
         transform=plt.gcf().transFigure)
-    plt.text(0.1, 0.33, "inhibitory", fontsize=8, rotation=90,
+    plt.text(0.06, 0.36, "inhibitory", fontsize=8, rotation=90,
         transform=plt.gcf().transFigure)
     ax.set_ylim(ymax=0)
     ax.set_xlim(xmin=0)
-    fig.text(.5,.05,captiontxt, ha='center')
-    fig.subplots_adjust(bottom=0.2)
+    # fig.text(.5,.05,captiontxt, ha='center')
+    # fig.subplots_adjust(bottom=0.2)
 
 
     folder = utils.checkFolder(figfolder)
     name = "dots"
     fullname = utils.testTheName(folder +name+titletxt , "png")
-    # ax.annotate('test', xy=(0.0, 0.75), xytext=(-0.1, 0.750), xycoords='axes fraction', 
-    #         fontsize=12, ha='center', va='bottom',
-    #         bbox=dict(boxstyle='square', fc='white'),
-    #         arrowprops=dict(arrowstyle='-[, widthB=7.0, lengthB=1.5', lw=2.0))
     plt.axhspan(0, len(nval_over_time)/2, facecolor='blue', alpha=0.3)
     plt.axhspan(len(nval_over_time)/2,len(nval_over_time), facecolor='red', alpha=0.3)
     if savefig_GLOBAL:
@@ -292,3 +305,62 @@ def dots(figfolder, nval_over_time, timer, titletxt, captiontxt):
     if showPlots_GLOBAL:
         plt.show()
     plt.close(fig)
+
+def meanOT(figfolder, nval_over_time, sizeM, timer, titletxt, captiontxt):
+    activationE = []
+    activationI = []
+    for vals in np.transpose(nval_over_time):
+        activationE.append(np.mean(vals[:sizeM[0]]))
+        activationI.append(np.mean(vals[sizeM[0]:]))
+    fig = plt.figure(tight_layout = True)
+
+    xside = np.arange(len(activationE))
+    lineE = plt.plot(xside, activationE, color = "blue",label = "excitatory")
+    xside = np.arange(len(activationI))
+    lineE = plt.plot(xside, activationI, color = "red", label = "inhibitory")
+
+    title_of_plot   = 'Mean Activation over Time' 
+    xlabel_of_plot  = 'time'
+    ylabel_of_plot  = 'Activation Rate'
+    name_of_plot    = "meanOT"
+    finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
+
+
+
+
+def newDistri( inputOT, titletxt, captiontxt):
+    actiRowLen = np.array([len(row) for row in inputOT])
+    meanRow = np.mean(actiRowLen)
+    fig = plt.figure(tight_layout = True)
+    plt.hist(actiRowLen/meanRow)
+
+    title_of_plot   = 'Fire Rate Distribution' 
+    xlabel_of_plot  = 'fireCount rate/mean'
+    ylabel_of_plot  = 'Density'
+    name_of_plot    = "Distri"
+    finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
+
+def newMeanOT(inputOT,sizeM):
+    flat_active = [np.array([x for row in inputOT[:sizeM[0]] for x in row],dtype=int),
+            np.array([x for row in inputOT[sizeM[0]:] for x in row],dtype=int)]
+    
+    uniq_active = [np.unique(act, return_counts = 1) for act in flat_active]
+    
+    normalized_active = [uniq_active[i][1]/sizeM[i] for i in range(2)]
+    colors = ['b','r']
+    labels = ['excitatory','inhibitory']
+    fig = plt.figure(tight_layout = True)
+    for i in range(2):
+        plt.plot(uniq_active[i][0],normalized_active[i],label=labels[i], color= colors[i])
+    plt.legend()
+
+    title_of_plot   = 'Mean Activation over Time' 
+    xlabel_of_plot  = 'time'
+    ylabel_of_plot  = 'Activation Rate'
+    name_of_plot    = "meanOT"
+    finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
+
+def newInterspike()
+    # actiSTART = np.array(activeOT[:,:-1])
+    # actiEND = np.array(activeOT[:,1:])
+    # actiDIF = actiEND - actiSTART
