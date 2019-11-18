@@ -25,11 +25,10 @@ captiontxt_GLOBAL   = ""
 
 def finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig):
     plt.title(title_of_plot)
-    plt.xlabel(xlabel_of_plot + '\n\n'+ captiontxt_GLOBAL)
+    plt.xlabel(xlabel_of_plot )
     plt.ylabel(ylabel_of_plot)
     folder = utils.checkFolder(figfolder_GLOBAL)
     fullname = utils.testTheName(folder +name_of_plot+titletxt_GLOBAL, "png")
-    plt.legend()
     if savefig_GLOBAL:
         plt.savefig(fullname)
         utils.plotMessage(fullname)
@@ -77,6 +76,7 @@ def activation_distribution(figfolder, total_times_one, fireCount, timer, titlet
     histfig = plt.figure(tight_layout = True)
     uniq = len(np.unique(total_times_one))
     binsize = 10 if uniq <10 else uniq if uniq<timer else timer
+    normal_tto = total_times_one/np.mean(total_times_one)
     plt.hist(total_times_one, bins = binsize, weights = np.ones(len(total_times_one))/len(total_times_one))
     plt.title('Fire Rate Distribution')
     plt.xlabel('fireCount rate/mean\n\n'+captiontxt)
@@ -248,30 +248,19 @@ def interspike(figfolder, nval_over_time, timer, titletxt, captiontxt,display_Lo
         if a: 
             diff += a
 
-    extratxt = ""
-    histfig = plt.figure(tight_layout = True)
+    fig = plt.figure(tight_layout = True)
     uniq = len(np.unique(diff))
     binsize = 10 if uniq <10 else uniq if uniq<timer else timer
-    captiontxt += extratxt
-    xlabel = "time"
 
     plt.hist(diff, bins = binsize, weights = np.ones(len(diff))/len(diff))
-    plt.title('Interspike Interval')
-    plt.xlabel(xlabel+'\n\n' + captiontxt)
-    plt.ylabel('density')
     if display_Log:
         plt.yscale('log', nonposy='clip')
 
-
-    folder = utils.checkFolder(figfolder)
-    name = "intervalHist"
-    fullname = utils.testTheName(folder +name+titletxt , "png")
-    if savefig_GLOBAL:
-        plt.savefig(fullname)
-        utils.plotMessage(fullname)
-    if showPlots_GLOBAL:
-        plt.show()
-    plt.close(histfig)
+    name_of_plot    = "intervalHist"
+    title_of_plot   = 'Interspike Interval' 
+    xlabel_of_plot  = 'Time'+ '\n\n'+ captiontxt_GLOBAL
+    ylabel_of_plot  = 'Density'
+    finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
 
 def dots(figfolder, nval_over_time, timer, titletxt, captiontxt):
 
@@ -280,31 +269,26 @@ def dots(figfolder, nval_over_time, timer, titletxt, captiontxt):
     record =np.transpose(nval_over_time)
     #ax.imshow(record, aspect='auto', cmap='Greys', interpolation='nearest')
     ax.imshow(nval_over_time, aspect='auto', cmap='Greys', interpolation='nearest')
-    plt.title('Neurons firing over time')
-    plt.xlabel('time\n\n'+ captiontxt)
-    plt.ylabel('neurons\n')
+
+    ### Kein Rand ###
+    ax.set_ylim(ymax=0)
+    ax.set_xlim(xmin=0)
+    ### Keine Ticks
     ax.set_yticks([])
+
+    ### Background Colour und Beschriftung ###
     plt.text(0.06, 0.7, "excitatory", fontsize=8, rotation=90,
         transform=plt.gcf().transFigure)
     plt.text(0.06, 0.36, "inhibitory", fontsize=8, rotation=90,
         transform=plt.gcf().transFigure)
-    ax.set_ylim(ymax=0)
-    ax.set_xlim(xmin=0)
-    # fig.text(.5,.05,captiontxt, ha='center')
-    # fig.subplots_adjust(bottom=0.2)
-
-
-    folder = utils.checkFolder(figfolder)
-    name = "dots"
-    fullname = utils.testTheName(folder +name+titletxt , "png")
     plt.axhspan(0, len(nval_over_time)/2, facecolor='blue', alpha=0.3)
     plt.axhspan(len(nval_over_time)/2,len(nval_over_time), facecolor='red', alpha=0.3)
-    if savefig_GLOBAL:
-        plt.savefig(fullname)
-        utils.plotMessage(fullname)
-    if showPlots_GLOBAL:
-        plt.show()
-    plt.close(fig)
+
+    title_of_plot   = 'Neurons firing over time' 
+    xlabel_of_plot  = 'time'+ '\n\n'+ captiontxt_GLOBAL
+    ylabel_of_plot  = 'neurons\n'
+    name_of_plot    = "dots"
+    finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
 
 def meanOT(figfolder, nval_over_time, sizeM, timer, titletxt, captiontxt):
     activationE = []
@@ -320,22 +304,28 @@ def meanOT(figfolder, nval_over_time, sizeM, timer, titletxt, captiontxt):
     lineE = plt.plot(xside, activationI, color = "red", label = "inhibitory")
 
     title_of_plot   = 'Mean Activation over Time' 
-    xlabel_of_plot  = 'time'
+    xlabel_of_plot  = 'time'+ '\n\n'+ captiontxt_GLOBAL
     ylabel_of_plot  = 'Activation Rate'
-    name_of_plot    = "meanOT"
+    name_of_plot    = "old_meanOT"
     finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
 
 
 
 
-def newDistri( inputOT, titletxt, captiontxt):
+def newDistri( inputOT, timer ):
     actiRowLen = np.array([len(row) for row in inputOT])
-    meanRow = np.mean(actiRowLen)
-    fig = plt.figure(tight_layout = True)
-    plt.hist(actiRowLen/meanRow)
+    norm       = actiRowLen/np.mean(actiRowLen) 
 
+    uniq = len(np.unique(norm))
+    uniq += 1 # neccessary to avoid that first to individual results are stacked on top of each other
+    binsize = 10 if uniq <10 else uniq if uniq<timer else timer
+
+    fig = plt.figure(tight_layout = True)
+    plt.hist(norm, bins = binsize, weights = np.ones(len(norm))/len(norm))
+
+    disclaimer = "actual amount of dead nodes:" +str(len([x for x in inputOT if not x])/len(inputOT)))
     title_of_plot   = 'Fire Rate Distribution' 
-    xlabel_of_plot  = 'fireCount rate/mean'
+    xlabel_of_plot  = 'fireCount rate/mean'+ '\n\n'+ captiontxt_GLOBAL + "\n" + disclaimer
     ylabel_of_plot  = 'Density'
     name_of_plot    = "Distri"
     finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
@@ -355,12 +345,29 @@ def newMeanOT(inputOT,sizeM):
     plt.legend()
 
     title_of_plot   = 'Mean Activation over Time' 
-    xlabel_of_plot  = 'time'
+    xlabel_of_plot  = 'time'+ '\n\n'+ captiontxt_GLOBAL
     ylabel_of_plot  = 'Activation Rate'
-    name_of_plot    = "meanOT"
+    name_of_plot    = "better_meanOT"
     finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
+     
+    return [np.mean(normalized_active[i]) for i in range(2)]
 
-def newInterspike()
-    # actiSTART = np.array(activeOT[:,:-1])
-    # actiEND = np.array(activeOT[:,1:])
-    # actiDIF = actiEND - actiSTART
+def newInterspike(inputOT,timer,display_Log = 1):
+    inpSTART  = [np.array(row[:-1]) for row in inputOT]
+    inpEND    = [np.array(row[1:])  for row in inputOT]
+    inpDIFF   = [inpEND[i] - inpSTART[i] for i in range(len(inputOT))]
+    flat_diff = np.array([x for row in inpDIFF for x in row])
+
+    fig = plt.figure(tight_layout = True)
+    uniq = len(np.unique(flat_diff))
+    binsize = 10 if uniq <10 else uniq if uniq<timer else timer
+
+    plt.hist(flat_diff, bins = binsize, weights = np.ones(len(flat_diff))/len(flat_diff))
+    if display_Log:
+        plt.yscale('log', nonposy='clip')
+
+    name_of_plot    = "interspike"
+    title_of_plot   = 'Interspike Interval' 
+    xlabel_of_plot  = 'Time'+ '\n\n'+ captiontxt_GLOBAL
+    ylabel_of_plot  = 'Density'
+    finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)

@@ -1,5 +1,6 @@
 """
-This is the main python file for my project
+This is the VanillaMain python file for my project
+
 """
 import numpy as np
 import math
@@ -281,35 +282,33 @@ def poissoni(sizeM, maxTime, tau, nval, jCon, thresh, external, fireCount, indiN
 
     :return     nvalOvertime
     """
-    total_times_one = np.zeros_like(nval)
     nval_over_time = np.zeros((sum(sizeM),int(maxTime/tau*1.1)))
     sizeMax = sum(sizeM)    
     likelihood_of_choosing_excite =  tau / (1+tau)
     ### New record containers ###
     activeOT = [[] for _ in range(sizeMax)]
-    fireOT  = activeOT.copy()
+    fireOT   = [[] for _ in range(sizeMax)]
     justActive=[0 for _ in range(sizeMax)]
 
-    combTime    = [0, 0]
-    combIterMax = sizeM 
-    combIter    = [0,0]       #iterates through sequence below
-    combMinSize = np.array([0, sizeM[0]])
-    combMaxSize = combMinSize + combIterMax
-    combRange   = [np.arange(combMinSize[i],combMaxSize[i]) for i in range(2)]
-    combSequence = []
+    comb_Big_Time   = [0, 0]
+    comb_Small_Time = [0, 0]       #iterates through sequence below
+    combMinSize     = np.array([0, sizeM[0]])
+    combMaxSize     = combMinSize + sizeM
+    combRange       = [np.arange(combMinSize[i],combMaxSize[i]) for i in range(2)]
+    combSequence    = []
     for inhibite in range(2):
         if randomProcess: 
             combSequence.append( np.random.randint(combMinSize[inhibite],combMaxSize[inhibite], sizeM[inhibite]))
         else:
             combSequence.append( np.random.permutation(combRange[inhibite]))
-    inhibite= 0
-    while combTime[0] < maxTime:
+
+    while comb_Big_Time[0] < maxTime:
         if np.random.uniform(0,1)<likelihood_of_choosing_excite:
             inhibite = 0
         else: 
             inhibite = 1
-        iterator = combSequence[inhibite][combIter[inhibite]]
-        if iterator <recNum and not inhibite:
+        iterator = combSequence[inhibite][comb_Small_Time[inhibite]]
+        if iterator <recNum:
             recordPrecisely = True
         else: 
             recordPrecisely = False
@@ -320,8 +319,8 @@ def poissoni(sizeM, maxTime, tau, nval, jCon, thresh, external, fireCount, indiN
             indiNeuronsDetailed[iterator].append(vals)
             vals = vals[1] - thresh[iterator]
         if vals >= 0:
-            nval_over_time[iterator,combTime[inhibite]] += 1
-            temp = combTime[0]+combIter[0]/sizeM[0]
+            nval_over_time[iterator,comb_Big_Time[inhibite]] += 1
+            temp = comb_Big_Time[0]+comb_Small_Time[0]/sizeM[0]
             activeOT[iterator].append(temp)
             if not justActive[iterator]:
                 fireOT[iterator].append(temp)
@@ -329,25 +328,24 @@ def poissoni(sizeM, maxTime, tau, nval, jCon, thresh, external, fireCount, indiN
         else:
             justActive[iterator] = 0
 
-        combIter[inhibite] +=1
-        if combIter[inhibite] >= sizeM[inhibite]:
-            combTime[inhibite] +=1
-            combIter[inhibite] = 0
-            total_times_one = nval[combMinSize[inhibite]:combMaxSize[inhibite]]
+        comb_Small_Time[inhibite] +=1
+        if comb_Small_Time[inhibite] >= sizeM[inhibite]:
+            comb_Big_Time[inhibite] +=1
+            comb_Small_Time[inhibite] = 0
             if randomProcess: 
                 combSequence[inhibite]  = np.random.randint(combMinSize[inhibite],combMaxSize[inhibite], sizeM[inhibite])
             else:
                 combSequence[inhibite] = np.random.permutation(combRange[inhibite])
-            if combTime[0] % 10 == 0 and not inhibite:
-                print(combTime[0])
+            if comb_Big_Time[0] % 10 == 0 and not inhibite:
+                print(f"{(comb_Big_Time[0]/maxTime):.0%}", end=", ")
+    print("")
     return nval_over_time, activeOT, fireOT
 
 
 def poissRun(jCon, thresh, external,  sizeM, extM,
     maxTime, K, meanActi_at_0, meanExt, tau, randomProcess, recNum = 15):
     """
-    Runs a mix between poisson and sequential Code
-
+    #Obsolete Wrapper
     Introduces analyze tools
 
 
@@ -385,7 +383,8 @@ def poissRun(jCon, thresh, external,  sizeM, extM,
 def prepare(K, meanExt, tau, sizeE, sizeI, extE, extI, jE, jI, threshE, threshI, doThresh):
     """
     creates all the needed objects and calls the workload functions and plots.
-    Virtually a main function, without parameter definition
+    Virtually a VanillaMain function, without parameter definition
+
     """
     sizeM = np.array([sizeE, sizeI])
     sizeM.setflags(write=False)
@@ -423,11 +422,12 @@ def prepare(K, meanExt, tau, sizeE, sizeI, extE, extI, jE, jI, threshE, threshI,
     return sizeM, threshM, extM, jCon, thresh, external
 
 
-def testRoutine(
+def run_container(
     timer, K, meanExt, tau, meanActi_at_0,
     sizeM,threshM, extM, recNum,
     jCon, thresh, external, figfolder, valueFolder,
     jE, jI, doPoiss = 0, doRand = 0, doThresh = "constant",
+    nDistri=0, nMeanOT=0, nInter=0,
     pActiDist=0, pIndiExt= 0, pInterspike=0,  pDots=0,pMeanOT=0):
     """
     executes the differen sequences
@@ -496,40 +496,62 @@ def testRoutine(
         plots.dots(figfolder, nval_over_time, timer, shorttxt, captiontxt)
     if pMeanOT:
         plots.meanOT(figfolder, nval_over_time, sizeM, timer, shorttxt, captiontxt)
-    plots.newDistri(activeOT, shorttxt, captiontxt)
-    plots.newMeanOT(activeOT,sizeM)
+    if nDistri:
+        plots.newDistri(activeOT, timer)
+    if nMeanOT:
+        plots.newMeanOT(activeOT,sizeM)
+    if nInter:
+        plots.newInterspike(fireOT,timer)
+
+    # lenofactive = np.sum([len(row) for row in activeOT])
+    # lenoffire = np.sum([len(row) for row in fireOT])
     meanActivationOT = np.mean(nval_over_time[:sizeM[0],-1])
     return meanActivationOT
+def FunMain():
+    (timer,  sizeE, sizeI, extE, extI, jE, jI, threshE, threshI,
+        meanActi_at_0,tau, meanExt, K, recNum, figfolder, valueFolder
+    ) = numParam()
 
-
-def main():
-    timer,  sizeE, sizeI, extE, extI, jE, jI, threshE, threshI,\
-            meanActi_at_0,tau, meanExt, K, recNum, figfolder, valueFolder\
-    = numParam()
-    print('!!!tau!!!')
-    pActiDist , pIndiExt, pInterspike, pDots, pMeanOT, doPoiss, doRand, doThresh\
-        =doParam()
-
-    sizeM, threshM, extM, jCon, thresh, external \
-        = prepare(  K, meanExt, tau, sizeE, sizeI, extE, extI,
-                    jE, jI,threshE, threshI, doThresh)
-    sizeMax = np.sum(sizeM)
-    # mean100 = [0.01, 0.04, 0.1, 0.2]
-    # meanOT = []
-    # for i,mean0_itt in enumerate(mean100):
-    #     meanOT.append(
-    testRoutine(
+    (pActiDist , pIndiExt, pInterspike, pDots, pMeanOT, nDistri, nMeanOT, nInter,
+        doPoiss, doRand, doThresh
+    ) = doParam()
+    (sizeM, threshM, extM, jCon, thresh, external
+    ) = prepare(K, meanExt, tau, sizeE, sizeI, extE, extI,
+                jE, jI,threshE, threshI, doThresh)
+    mean100 = [0.01, 0.04, 0.1, 0.2]
+    meanOT = []
+    for i,mean0_itt in enumerate(mean100):
+        meanOT.append(
+    run_container(
                 timer, K, meanExt, tau, meanActi_at_0,
                 sizeM, threshM, extM, recNum,
                 jCon, thresh, external, figfolder, valueFolder,
                 jE, jI, doPoiss, doRand, doThresh,
+                nDistri, nMeanOT, nInter,
                 pActiDist,  pIndiExt, pInterspike,pDots, pMeanOT)
-    #     )
-    # mean100+=meanOT
-    # mean100 = np.array(mean100)
-    # mean100.shape = (2,len(meanOT))
-    # print(mean100)
-    print('!!!tau!!!')
+        )
+    mean100+=meanOT
+    mean100 = np.array(mean100)
+    mean100.shape = (2,len(meanOT))
+    print(mean100)
+
+def VanillaMain():
+    (timer,  sizeE, sizeI, extE, extI, jE, jI, threshE, threshI,
+        meanActi_at_0,tau, meanExt, K, recNum, figfolder, valueFolder
+    ) = numParam()
+    (pActiDist , pIndiExt, pInterspike, pDots, pMeanOT, nDistri, nMeanOT, nInter,
+        doPoiss, doRand, doThresh
+    ) = doParam()
+    (sizeM, threshM, extM, jCon, thresh, external
+    ) = prepare(K, meanExt, tau, sizeE, sizeI, extE, extI,
+                jE, jI,threshE, threshI, doThresh)
+    run_container(
+        timer, K, meanExt, tau, meanActi_at_0,
+        sizeM, threshM, extM, recNum,
+        jCon, thresh, external, figfolder, valueFolder,
+        jE, jI, doPoiss, doRand, doThresh,
+        nDistri, nMeanOT, nInter,
+        pActiDist,  pIndiExt, pInterspike,pDots, pMeanOT)
 
 def numParam():
     """
@@ -551,14 +573,14 @@ def numParam():
     threshE         = 1.
     threshI         = 0.7
     tau             = 0.9
-    meanExt         = 0.2
+    meanExt         = 0.1
     K               = 1000
     meanActi_at_0   = 0.1
-    recNum          = 100 
+    recNum          = 20
     ### Most changed vars ###
-    timer           = 50
+    timer           = 60
     K               = 1000
-    size            = 1000
+    size            = 2000
     sizeE,sizeI     = size,size
 
     return  timer, sizeE, sizeI, extE, extI, jE, jI, threshE, threshI,\
@@ -568,23 +590,39 @@ def doParam():
     specifies most behaviors of 
     """
     #Bools for if should be plotted or not
-    pActiDist   = 0
-    pIndiExt    = 0
-    pInterspike = 0
-    pDots       = 0
-    pMeanOT     = 0
+    #pActiDist   = 0 # unexplained discrepancies
+    pIndiExt    = 1
+    pInterspike = 1 # obsolete
+    pDots       = 1
+    pMeanOT     = 1 # obsolete
+    nDistri     = 1
+    nMeanOT     = 1
+    nInter      = 1
 
     doThresh    = "constant" #"constant", "gauss", "bound"
+
     #Only one Sequence per Routine
     doPoiss     = 1 
     doRand      = 0 
 
-    plots.savefig_GLOBAL    = 0
-    plots.showPlots_GLOBAL  = 1
+    plots.savefig_GLOBAL    = 1
+    plots.showPlots_GLOBAL  = 0
 
-    return pActiDist , pIndiExt, pInterspike, pDots, pMeanOT, doPoiss, doRand, doThresh 
+    return (pActiDist , pIndiExt, pInterspike, pDots, pMeanOT, nDistri, nMeanOT, nInter,
+            doPoiss, doRand, doThresh)
 
 if __name__ == "__main__":
-    #afterSimulationAnalysis()
-    main()
-    
+    #FunMain()
+    VanillaMain()
+
+###############################################################################
+################################## To Dos #####################################
+###############################################################################
+"""
+Rewrite Recover and SaveResults\
+Remove Obsolete Plots
+Plot meanOT vs meanExt
+
+
+Cython someday
+"""
