@@ -1,20 +1,24 @@
 from pathlib import Path
+import math
 import numpy as np
-from scipy import special
-import scipy.integrate as integrate
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from scipy import special
+import scipy.integrate as integrate
 from scipy.stats import gaussian_kde
 from collections import OrderedDict #grouped Labels
 
+import time
+
 import utils
+import neuron as nn
 
 ###############################################################################
 ############################### Global Variables ##############################
 ###############################################################################
-savefig_GLOBAL      = 1
-showPlots_GLOBAL    = 0
+savefig_GLOBAL      = 0
+showPlots_GLOBAL    = 1
 figfolder_GLOBAL    = ""
 titletxt_GLOBAL     = ""
 captiontxt_GLOBAL   = ""
@@ -36,7 +40,7 @@ def finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
         plt.show()
     plt.close(fig)
 
-def activation_distribution(figfolder, total_times_one, fireCount, timer, titletxt, captiontxt):
+def activation_distribution(figfolder, fireCount, timer, titletxt, captiontxt):
     """
     plots distribution of firing pattern in relation to mean firing pattern
 
@@ -46,10 +50,8 @@ def activation_distribution(figfolder, total_times_one, fireCount, timer, titlet
     :param fireCount: contains all the times a specific neuron spiked
         (ie turned 0 afterwards) (not in use)
     """
-    total_times_one = np.array(total_times_one)
+    total_times_one = np.array(fireCount)
     meanTot = np.mean(total_times_one)
-    # if meanTot == 0:
-    #     print("not a single flip for the following starting values")
     # total_times_one = total_times_one/meanTot
     # density = gaussian_kde(total_times_one)
     # xs = np.linspace(0,3)
@@ -57,27 +59,13 @@ def activation_distribution(figfolder, total_times_one, fireCount, timer, titlet
     # density._compute_covariance()
     # fig = plt.figure()
     # plt.plot(xs,density(xs))
-
-    # plt.title('Fire Rate Distribution')
-    # plt.xlabel('Fire rate/mean')
-    # plt.ylabel('Density')
-    # fig.text(.5,.05,captiontxt, ha='center')
-    # fig.subplots_adjust(bottom=0.2)
-
-    # folder = utils.checkFolder(figfolder)
-    # name = "density"
-    # fullname = utils.testTheName(folder +name+titletxt , "png")
-    # if savefig_GLOBAL:
-    #     plt.savefig(fullname)
-    #     utils.plotMessage(fullname)
-    # #plt.show()
-    # plt.close(fig)
     
     histfig = plt.figure(tight_layout = True)
     uniq = len(np.unique(total_times_one))
     binsize = 10 if uniq <10 else uniq if uniq<timer else timer
     normal_tto = total_times_one/np.mean(total_times_one)
-    plt.hist(total_times_one, bins = binsize, weights = np.ones(len(total_times_one))/len(total_times_one))
+    plt.hist(total_times_one, bins = binsize, 
+        weights = np.ones(len(total_times_one))/len(total_times_one))
     plt.title('Fire Rate Distribution')
     plt.xlabel('fireCount rate/mean\n\n'+captiontxt)
     plt.ylabel('density')
@@ -135,8 +123,9 @@ def indi(figfolder, indiNeuronsDetailed, fireCount, threshM, titletxt, captiontx
 
 
 def indiExtended(figfolder, indiNeuronsDetailed, fireCount, threshM,
-    showRange, titletxt, captiontxt):
-    showRange = 15
+    titletxt, captiontxt,recNum):
+
+    showRange = recNum
     exORin = 0
     level = 0
     """
@@ -144,7 +133,7 @@ def indiExtended(figfolder, indiNeuronsDetailed, fireCount, threshM,
     ax1         = axarr[0]
     ax2         = axarr[1]
     """
-    fig = plt.figure(constrained_layout = False, figsize = (10,10))
+    fig = plt.figure(constrained_layout = False, )#figsize = (10,10))
     h_ratio = 10-showRange/2 if 10-showRange/2>2 else 2
     gs  = fig.add_gridspec(ncols=1,nrows=2,height_ratios=[h_ratio,1])
     ax1 = fig.add_subplot(gs[0,:])
@@ -166,7 +155,9 @@ def indiExtended(figfolder, indiNeuronsDetailed, fireCount, threshM,
         col=['blue', 'green', 'red']
         labelNames = ["positive", "total sum", "negative"]
         lines=[[] for x in range(showRange)]
-        spike = [1 if rec[1][j] > threshM[exORin] else 0 for j in range(len(rec[1]))]
+        spike = [1 if rec[1][j]
+         > threshM[exORin] 
+         else 0 for j in range(len(rec[1]))]
         spike += [0.3 for x in range(lengthOfPlot-len(rec[1]))]
         dataspike.append(spike)
         for j in range(len(rec)):
@@ -177,8 +168,6 @@ def indiExtended(figfolder, indiNeuronsDetailed, fireCount, threshM,
     xs = range(lengthOfPlot)
     consta = [threshM[exORin] for x in range(lengthOfPlot)]
     ax1.plot(xs,consta, color = "black", linewidth = 2.0)
-    #fig.text(.5,.05,captiontxt, ha='center')
-    #fig.subplots_adjust(bottom=0.3)
     fig.suptitle('Individual Neuron Firing Pattern', fontsize= 20)
     labelX = "time"
     plt.xlabel(labelX + '\n\n' + captiontxt)
@@ -187,12 +176,6 @@ def indiExtended(figfolder, indiNeuronsDetailed, fireCount, threshM,
     by_label = OrderedDict(zip(labels, handles))
     ax1.legend(by_label.values(), by_label.keys())
     ax2.set(ylabel = 'Spike')
-    #Labels
-    #first_legend = plt.legend(handles=[lines[0]], loc='lower right')
-    #ax1 = plt.gca().add_artist(first_legend)
-    #aplt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc='lower left',   
-           #ncol=2, mode="expand", borderaxespad=0.)
-
 
     folder = utils.checkFolder(figfolder)
     name = "IndiExt"
@@ -237,7 +220,7 @@ def analyzeTau(rec):
                 buff = 1
     return dist
 
-def interspike(figfolder, nval_over_time, timer, titletxt, captiontxt,display_Log = 1):
+def interspike(figfolder, nval_over_time, timer, display_Log = 1):
     """
     see analyze for calculation
     """
@@ -262,7 +245,7 @@ def interspike(figfolder, nval_over_time, timer, titletxt, captiontxt,display_Lo
     ylabel_of_plot  = 'Density'
     finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
 
-def dots(figfolder, nval_over_time, timer, titletxt, captiontxt):
+def dots(figfolder, nval_over_time, timer):
 
     fig = plt.figure(tight_layout = True)
     ax = fig.add_subplot(111)
@@ -290,7 +273,7 @@ def dots(figfolder, nval_over_time, timer, titletxt, captiontxt):
     name_of_plot    = "dots"
     finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
 
-def meanOT(figfolder, nval_over_time, sizeM, timer, titletxt, captiontxt):
+def meanOT(figfolder, nval_over_time, sizeM, timer):
     activationE = []
     activationI = []
     for vals in np.transpose(nval_over_time):
@@ -316,41 +299,36 @@ def newDistri( inputOT, timer ):
     actiRowLen = np.array([len(row) for row in inputOT])
     norm       = actiRowLen/np.mean(actiRowLen) 
 
-    uniq = len(np.unique(norm))
-    uniq += 1 # neccessary to avoid that first to individual results are stacked on top of each other
-    binsize = 10 if uniq <10 else uniq if uniq<timer else timer
+    d = np.diff(np.unique(norm)).min()
+    first_bin = norm.min() - float(d)/2
+    last_bin = norm.max() + float(d)/2
+    bin_range = np.arange(first_bin, last_bin + d, d)
 
     fig = plt.figure(tight_layout = True)
-    plt.hist(norm, bins = binsize, weights = np.ones(len(norm))/len(norm))
+    plt.hist(norm, bins = bin_range, weights = np.ones(len(norm))/len(norm))
 
-    disclaimer = "actual amount of dead nodes:" +str(len([x for x in inputOT if not x])/len(inputOT)))
+    disclaimer = "actual amount of dead nodes:" +str(len([x for x in inputOT if not x])/len(inputOT))
     title_of_plot   = 'Fire Rate Distribution' 
     xlabel_of_plot  = 'fireCount rate/mean'+ '\n\n'+ captiontxt_GLOBAL + "\n" + disclaimer
     ylabel_of_plot  = 'Density'
     name_of_plot    = "Distri"
     finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
 
-def newMeanOT(inputOT,sizeM):
-    flat_active = [np.array([x for row in inputOT[:sizeM[0]] for x in row],dtype=int),
-            np.array([x for row in inputOT[sizeM[0]:] for x in row],dtype=int)]
-    
-    uniq_active = [np.unique(act, return_counts = 1) for act in flat_active]
-    
-    normalized_active = [uniq_active[i][1]/sizeM[i] for i in range(2)]
+def newMeanOT(mean_inputOT):
     colors = ['b','r']
     labels = ['excitatory','inhibitory']
     fig = plt.figure(tight_layout = True)
-    for i in range(2):
-        plt.plot(uniq_active[i][0],normalized_active[i],label=labels[i], color= colors[i])
-    plt.legend()
 
+    for i in range(2):
+        x_range = np.arange(len(mean_inputOT[i]))
+        plt.plot(mean_inputOT[i],label=labels[i], color= colors[i])
+    plt.legend()
     title_of_plot   = 'Mean Activation over Time' 
     xlabel_of_plot  = 'time'+ '\n\n'+ captiontxt_GLOBAL
     ylabel_of_plot  = 'Activation Rate'
     name_of_plot    = "better_meanOT"
     finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
      
-    return [np.mean(normalized_active[i]) for i in range(2)]
 
 def newInterspike(inputOT,timer,display_Log = 1):
     inpSTART  = [np.array(row[:-1]) for row in inputOT]
@@ -371,3 +349,56 @@ def newInterspike(inputOT,timer,display_Log = 1):
     xlabel_of_plot  = 'Time'+ '\n\n'+ captiontxt_GLOBAL
     ylabel_of_plot  = 'Density'
     finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
+
+def dots2(inputOT, timer):
+    precision = 1#.1
+    mrkr = math.sqrt(1/(timer*len(inputOT)))*300
+    fig = plt.figure(tight_layout=True)
+    ax = fig.add_subplot(111)
+    start = time.time()
+    val_OT = np.zeros((len(inputOT),int(timer/precision)))
+    for i in range(len(inputOT)):
+        for zeit in inputOT[i]:
+            val_OT[i,int(zeit/precision)] = 1 
+    ax.imshow(val_OT, aspect='auto', cmap='Greys',extent = [0,timer,0,len(inputOT)], interpolation='nearest')
+
+    # for i,row in enumerate(inputOT):
+    #     yaxis = [i for _ in row]
+    #     plt.plot(row,yaxis, marker= 's', color= 'black', markersize= mrkr,linestyle='none',)
+    end = time.time()
+    # utils.timeOut(end-start)
+    ### Kein Rand ###
+    ax.set_ylim(ymin=0,ymax=len(inputOT))
+    ax.set_xlim(xmin=0,xmax= timer)
+    ### Keine Ticks
+    ax.set_yticks([])
+    ### Background Colour und Beschriftung ###
+    plt.text(0.06, 0.7, "inhibitory", fontsize=8, rotation=90,
+        transform=plt.gcf().transFigure)
+    plt.text(0.06, 0.36, "excitatory", fontsize=8, rotation=90,
+        transform=plt.gcf().transFigure)
+    plt.axhspan(0, len(inputOT)/2, facecolor='red', alpha=0.3)
+    plt.axhspan(len(inputOT)/2,len(inputOT), facecolor='blue', alpha=0.3)
+
+    title_of_plot   = 'Neurons firing over time' 
+    xlabel_of_plot  = 'time'+ '\n\n'+ captiontxt_GLOBAL
+    ylabel_of_plot  = 'neurons\n'
+    name_of_plot    = "dots2"
+    finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
+
+def mean_vs_ext(meanList):
+    fig = plt.figure(tight_layout = True)
+    ax = fig.add_subplot(111)
+    pltColor = ['b','r']
+    pltLabel = ['excitatory','inhibitory']
+    for i in range(2):
+        plt.scatter(meanList[0],meanList[i+1],color=pltColor[i],label=pltLabel[i])
+    plt.legend()
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+    title_of_plot   = '' 
+    xlabel_of_plot  = 'External Rate'
+    ylabel_of_plot  = 'Mean Rate'
+    name_of_plot    = "mean_vs_ext"
+    finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
+
