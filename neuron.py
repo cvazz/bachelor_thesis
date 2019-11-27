@@ -6,15 +6,7 @@ import numpy as np
 import math
 import random 
 
-### Obsolete, tbd by 23.11. ###
-# tbd = to be deleted
-
-# from scipy import special
-# import scipy.integrate as integrate
 import matplotlib.pyplot as plt
-# import matplotlib.patches as mpatches
-# from scipy.stats import gaussian_kde
-# from collections import OrderedDict #grouped Labels
 
 ### File Interaction and Manipulation ###
 from pathlib import Path
@@ -33,7 +25,7 @@ import old
 ############################## Utility Functions ##############################
 ###############################################################################
 
-def saveResults(valueFolder, indiNeuronsDetailed, fireCount, nval_over_time, 
+def saveResults(valueFolder, indiNeuronsDetailed, 
                 activeOT, fireOT, info, toDo):
     """
     Save recordings of output to file.
@@ -47,40 +39,20 @@ def saveResults(valueFolder, indiNeuronsDetailed, fireCount, nval_over_time,
         valueFolder.mkdir(parents = True)
 
 
-    info["nvalOT_shape"] = np.shape(nval_over_time)
     remember_list = [info, toDo]
-
-    loc = []
-    uniq = np.unique(nval_over_time)
-    if len(uniq) > 2:
-        print(f"Warning nval_over_time has recorded non boolean values,"+
-        " which have not been saved")
-        print (np.unique(nval_over_time, return_counts=1))
-    for iter in np.ndindex(np.shape(nval_over_time)):
-        if nval_over_time[iter]:
-            loc.append(iter)
-    loc = np.array(loc)
-    #loop next time
     indiNametxt     = "indiNeurons"
-    fireNametxt     = "fireCount"
-    nvalIndexNametxt= "nval_Index"
     infoNametxt     = "infoDict"
-    actionNametxt   = "activeOT"    
+    activeNametxt   = "activeOT"    
     fireNametxt     = "fireOT"      
 
     indiName        = utils.makeNewPath(valueFolder, indiNametxt, "npy")
     fireName        = utils.makeNewPath(valueFolder, fireNametxt, "npy")
-    nval_Index_Name = utils.makeNewPath(valueFolder, nvalIndexNametxt, "npy")
-    fireName        = utils.makeNewPath(valueFolder, fireNametxt, "npy")
-    actionName      = utils.makeNewPath(valueFolder, actionNametxt, "npy")
+    activeName      = utils.makeNewPath(valueFolder, activeNametxt, "npy")
     infoName        = utils.makeNewPath(valueFolder, infoNametxt, "pkl")
 
     np.save(indiName, indiNeuronsDetailed)
-    np.save(fireName, fireCount)
-    np.save(nval_Index_Name, loc)
-    np.save(nval_Index_Name, loc)
     np.save(fireName, fireOT)
-    np.save(actionName, activeOT)
+    np.save(activeName, activeOT)
     infoName.touch()
     with open(infoName, "wb") as infoFile:
         pickle.dump(remember_list, infoFile, protocol = pickle.HIGHEST_PROTOCOL)
@@ -92,38 +64,28 @@ def recoverResults(valueFolder):
     Missing functionality: so far, does only take neurons with preset names
 
     :param valueFolder: |valueFolder_desc|
-    :return: indiNeuronsDetailed, fireCount, 
+    :return: indiNeuronsDetailed,  
     """
 
-    indiNametxt = "indiNeurons"
-    fireNametxt = "fireCount"
-    nvalIndexNametxt   = "nval_Index"
+    indiNametxt     = "indiNeurons"
     infoNametxt     = "infoDict"
-    actionNametxt   = "activeOT"    
+    activeNametxt   = "activeOT"    
     fireNametxt     = "fireOT"      
 
     indiName        = utils.makeExistingPath(valueFolder, indiNametxt, "npy")
+    activeName      = utils.makeExistingPath(valueFolder, activeNametxt, "npy")
     fireName        = utils.makeExistingPath(valueFolder, fireNametxt, "npy")
-    nval_Index_Name = utils.makeExistingPath(valueFolder, nvalIndexNametxt, "npy")
-    fireName        = utils.makeExistingPath(valueFolder, fireNametxt, "npy")
-    actionName      = utils.makeExistingPath(valueFolder, actionNametxt, "npy")
     infoName        = utils.makeExistingPath(valueFolder, infoNametxt, "pkl")
 
     indiNeuronsDetailed = np.load(indiName, allow_pickle = True)
-    fireCount           = np.load(fireName, allow_pickle = True)
-    nval_Index          = np.load(nval_Index_Name, allow_pickle = True)
-    activeOT            = np.load(nval_Index_Name, allow_pickle = True)
-    fireOT              = np.load(nval_Index_Name, allow_pickle = True)
+    activeOT            = np.load(activeName, allow_pickle = True)
+    fireOT              = np.load(fireName, allow_pickle = True)
    
 
     with open(infoName, 'rb') as infoFile:
         info, toDo = pickle.load(infoFile)
-    nval_OT = np.zeros(info["nvalOT_shape"])
-    for it in nval_Index:
-        iter = (it[0], it[1])
-        nval_OT[iter] = 1
 
-    return indiNeuronsDetailed, fireCount, activeOT, fireOT, nval_OT, info, toDo
+    return indiNeuronsDetailed, activeOT, fireOT, info, toDo
 
 ################################################################################
 ############################ Creating Functions ################################
@@ -140,7 +102,6 @@ def createjCon(sizeM, jE, jI, K):
 
     :return     jCon    : Connection Matrix
     """
-    debug       = 0
     if sizeM[0] != sizeM[1]:
         raise ValueError("proboverThreshability assumes equal likelihood "
                         +"of being excitatory or inhibitory")
@@ -264,7 +225,7 @@ def analyzeMeanOT(inputOT,sizeM):
 ############################## Core Functions ##################################
 ################################################################################
 def timestepMat (iter, nval, jCon, thresh, external,
-                fireCount, recordPrecisely=0,combMinSize=[0],combMaxSize=[0]):
+                 recordPrecisely=0,combMinSize=[0],combMaxSize=[0]):
     """
     Calculator for whether one neuron changes value
 
@@ -277,18 +238,16 @@ def timestepMat (iter, nval, jCon, thresh, external,
     :param      jCon    : Connection Matrix 
     :param      thresh  : Stores Thresholds 
     :param      external: Input from external Neurons 
-    :param      fireCount    : records how often a neuron switches to active state 
 
     :return             : for troubleshooting returns value before Heaviside function
     """
     sum = jCon[iter].dot(nval)
     decide = sum + external[iter] - thresh[iter]
-    if decide > 0:
-        if nval[iter] == 0:
-            fireCount[iter] += 1
-        nval[iter] = 1
-    else:
-        nval[iter] = 0
+    nval[iter] = int(decide > 0)
+    # if decide > 0:
+    #     nval[iter] = 1
+    # else:
+    #     nval[iter] = 0
     if recordPrecisely:
         inputs = []
         for i in range(len(combMinSize)):
@@ -298,8 +257,69 @@ def timestepMat (iter, nval, jCon, thresh, external,
     return decide 
 
 
-def poissoni(nval, jCon, thresh, external,
-            fireCount, indiNeuronsDetailed, randomProcess, info):
+def update_org_det( nval, jCon, thresh, external,
+                    indiNeuronsDetailed, randomProcess, info):
+    (sizeM, maxTime, tau, recNum) = info["sizeM"],info["timer"], info["tau"], info['recNum']
+    sizeMax = sum(sizeM)    
+
+    ### New record containers ###
+    activeOT = [[] for _ in range(sizeMax)]
+    fireOT   = [[] for _ in range(sizeMax)]
+
+    comb_Big_Time   = [0, 0]        # is added up maxTime times before hard stop
+    comb_Small_Time = [0, 0]        # is added up N times before being resetted 
+    combMinSize     = np.array([0, sizeM[0]])
+    combMaxSize     = combMinSize + sizeM
+    combRange       = [np.arange(combMinSize[i],combMaxSize[i]) for i in range(2)]
+    combSequence    = []
+    combDelta       = []
+    for inhibite in range(2):
+        combDelta.append( np.random.uniform(0,1,sizeM[inhibite]))
+        combDelta[inhibite].sort()
+        combSequence.append( np.random.permutation(combRange[inhibite]))
+
+
+    while comb_Big_Time[0] < maxTime:
+        # inhibite = 0 with likelihood of choosing excite
+        inhibite = int(comb_Big_Time[0]+combDelta[0][comb_Small_Time[0]] >
+                      (comb_Big_Time[1]+combDelta[1][comb_Small_Time[1]])*tau)
+        # chooses the next neuron to be iterated through
+        iterator = (combSequence[inhibite]
+        [comb_Small_Time[inhibite]])
+        # records the first "recNum" values
+        recordPrecisely = iterator <recNum
+        # checks whether the neuron was just active
+        justActive = nval[iterator] 
+
+        result = timestepMat(iterator, nval, jCon,
+                thresh, external, recordPrecisely,
+                combMinSize, combMaxSize)
+        ### if result is of type list it needs to be recorded ...
+        if isinstance(result, list):
+            indiNeuronsDetailed[iterator].append(result)
+            # ... and converted back to a float value
+            result = result[1] - thresh[iterator]
+        ### Record Activation
+        if result >= 0:
+            temp = comb_Big_Time[0]+comb_Small_Time[0]/sizeM[0]
+            activeOT[iterator].append(temp)
+            if not justActive:
+                fireOT[iterator].append(temp)
+
+        comb_Small_Time[inhibite] +=1
+        ### End of comb_Small_Time Sequence
+        if comb_Small_Time[inhibite] >= sizeM[inhibite]:
+            comb_Big_Time[inhibite] +=1
+            comb_Small_Time[inhibite] = 0
+            if comb_Big_Time[0] % 10 == 0 and not inhibite:
+                print(f"{(comb_Big_Time[0]/maxTime):.0%}", end=", ", flush=True)
+    print("")
+
+    return  activeOT, fireOT
+
+
+def update_org( nval, jCon, thresh, external,
+                indiNeuronsDetailed, randomProcess, info):
     """
     Selects the sequence of updates and records results on the fly
 
@@ -311,12 +331,11 @@ def poissoni(nval, jCon, thresh, external,
 
     :param      maxTime : Controls runtime
     :param      sizeM   : Contains information over the network size
-    :param      tau     : How often inhibitory neurons fireCount compared to excitatory
+    :param      tau     : How often inhibitory neurons fire compared to excitatory
     :param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
     :param      jCon    : Connection Matrix 
     :param      thresh  : Stores Thresholds 
     :param      external: Input from external Neurons 
-    :param      fireCount    : records how often a neuron switches to active state 
     :param      indiNeuronsDetailed: 
     :param      recNum  : How many neurons are recorded 
 
@@ -326,7 +345,6 @@ def poissoni(nval, jCon, thresh, external,
 
 
     (sizeM, maxTime, tau, recNum) = info["sizeM"],info["timer"], info["tau"], info['recNum']
-    nval_over_time = np.zeros((sum(sizeM),int(maxTime/tau*1.1)))
     sizeMax = sum(sizeM)    
     likelihood_of_choosing_excite =  tau / (1+tau)
     ### New record containers ###
@@ -357,7 +375,7 @@ def poissoni(nval, jCon, thresh, external,
         justActive = nval[iterator] 
 
         result = timestepMat(iterator, nval, jCon,
-                thresh, external, fireCount, recordPrecisely,
+                thresh, external,  recordPrecisely,
                 combMinSize, combMaxSize)
         ### if result is of type list it needs to be recorded ...
         if isinstance(result, list):
@@ -366,7 +384,6 @@ def poissoni(nval, jCon, thresh, external,
             result = result[1] - thresh[iterator]
         ### Record Activation
         if result >= 0:
-            nval_over_time[iterator,comb_Big_Time[inhibite]] += 1
             temp = comb_Big_Time[0]+comb_Small_Time[0]/sizeM[0]
             activeOT[iterator].append(temp)
             if not justActive:
@@ -377,15 +394,15 @@ def poissoni(nval, jCon, thresh, external,
         if comb_Small_Time[inhibite] >= sizeM[inhibite]:
             comb_Big_Time[inhibite] +=1
             comb_Small_Time[inhibite] = 0
-            # if randomProcess: 
-            #     combSequence[inhibite]  = np.random.randint(
-            #         combMinSize[inhibite],combMaxSize[inhibite], sizeM[inhibite])
-            # else:
-            #     combSequence[inhibite] = np.random.permutation(combRange[inhibite])
+            if randomProcess: 
+                combSequence[inhibite]  = np.random.randint(
+                    combMinSize[inhibite],combMaxSize[inhibite], sizeM[inhibite])
+            else:
+                combSequence[inhibite] = np.random.permutation(combRange[inhibite])
             if comb_Big_Time[0] % 10 == 0 and not inhibite:
                 print(f"{(comb_Big_Time[0]/maxTime):.0%}", end=", ", flush=True)
     print("")
-    return nval_over_time, activeOT, fireOT
+    return  activeOT, fireOT
 
 
 ###############################################################################
@@ -399,8 +416,7 @@ def prepare(info,
     Virtually a VanillaMain function, without parameter definition
 
     """
-    sizeM, threshM = info["sizeM"],info["threshM"]
-    if min(sizeM)<info["K"]:
+    if min(info['sizeM'])<info["K"]:
         raise Warning("K must be smaller than or equal to size "
                         +"of excitatory or inhibitory Values")
     external = createExt(info["sizeM"],info["extM"], info["K"], info["meanExt"])     
@@ -414,7 +430,6 @@ def run_box( jCon, thresh, external, info, toDo ):
     """
     executes the differen sequences
     """ 
-    recNum = info["recNum"]
     print("run")
     timestart = time.time()
     valueFolder = describe( toDo, info, 0 )
@@ -422,24 +437,25 @@ def run_box( jCon, thresh, external, info, toDo ):
     ### Th function ###
     nval = createNval(info["sizeM"], info["meanActi_at_0"])  
     nval0 = nval.copy()
-    fireCount = np.zeros(np.shape(nval)) #Fire rate for indivual neuron
     indiNeuronsDetailed = [[] for i in range(info['recNum'])] 
-
-    (nval_over_time, activeOT, fireOT
-    ) = poissoni(nval, jCon, thresh, external,
-                fireCount, indiNeuronsDetailed, toDo["doRand"], info)
+    if toDo["doDet"]:
+        activeOT, fireOT = update_org_det( nval, jCon, thresh, external,
+                                  indiNeuronsDetailed, toDo["doRand"], info)
+    else:
+        activeOT, fireOT = update_org( nval, jCon, thresh, external,
+                                  indiNeuronsDetailed, toDo["doRand"], info)
 
     ### time check ###
     timeend = time.time()
     print("runtime of routine")
     utils.timeOut(timeend - timestart)
 
-    # saveResults(valueFolder, indiNeuronsDetailed, fireCount, nval_over_time, 
-    #             activeOT, fireOT, info, toDo)
-    # (indiNeuronsDetailed, fireCount, activeOT, fireOT, nval_OT, info, toDo
+    saveResults(valueFolder, indiNeuronsDetailed, 
+                activeOT, fireOT, info, toDo)
+    # (indiNeuronsDetailed, activeOT, fireOT, nval_OT, info, toDo
     # )= recoverResults(valueFolder)
 
-    return (indiNeuronsDetailed, fireCount, nval_over_time, 
+    return (indiNeuronsDetailed,   
             activeOT, fireOT, nval0)
 
 def describe( toDo, info, figs ):
@@ -453,6 +469,9 @@ def describe( toDo, info, figs ):
     if toDo["doRand"]:
         captiontxt += f",\n stochastic Updates"
         shorttxt += "_rY"
+    elif toDo["doDet"]:
+        captiontxt += ",\n strictly deterministic Updates"
+        shorttxt += "_rNN"
     else:
         captiontxt += ",\n deterministic Updates"
         shorttxt += "_rN"
@@ -481,26 +500,16 @@ def describe( toDo, info, figs ):
 
 def plot_machine(
         activeOT, fireOT, indiNeuronsDetailed,
-        fireCount, nval_over_time,
         info, drw, toDo
         ):
-    figfolder, shorttxt, captiontxt = describe( toDo, info, 1)
-
     threshM, timer, sizeM, recNum = info["threshM"], info["timer"], info["sizeM"], info["recNum"]
+    describe(toDo, info,1) 
     ### Analysis ###
     mean_actiOT = analyzeMeanOT(activeOT,sizeM)
 
     ### Plotting Routine ###
-    if drw["pActiDist"]:
-        plots.activation_distribution(figfolder, fireCount, timer, shorttxt, captiontxt)
     if drw["pIndiExt"]:
-        plots.indiExtended(figfolder,indiNeuronsDetailed,fireCount, threshM, shorttxt, captiontxt,recNum )
-    if drw["pInterspike"]:
-        plots.interspike(figfolder, nval_over_time, timer)
-    if drw["pDots"]:
-        plots.dots(figfolder, nval_over_time, timer)
-    if drw["pMeanOT"]:
-        plots.meanOT(figfolder, nval_over_time, sizeM, timer)
+        plots.indiExtended(indiNeuronsDetailed, threshM, recNum )
     if drw["nDistri"]:
         plots.newDistri(activeOT, timer)
     if drw["newMeanOT"]:
@@ -514,7 +523,7 @@ def plot_machine(
 
 def changeExt_Main():
     info = numParam()
-    (drw, toDo) = doParam()
+    toDo = doParam()[1]
     info["meanExt"] = 0.04
     jCon = createjCon(info["sizeM"], info["jE"], info["jI"], info["K"])
     external = createExt(info["sizeM"],info["extM"], info["K"], info["meanExt"])     
@@ -523,9 +532,7 @@ def changeExt_Main():
     meanList = []
     for i in range(len(mE_List)):
         external = createExt(info["sizeM"],info["extM"], info["K"],mE_List[i] )     
-        (indiNeuronsDetailed, fireCount, nval_over_time, 
-                activeOT, fireOT, nval0
-        ) = run_box( jCon, thresh, external,  info, toDo,)
+        activeOT = run_box( jCon, thresh, external,  info, toDo)[1] #1:active, 2:fire
         means= analyzeMeanOT(activeOT,info["sizeM"])
         meanList.append([mE_List[i]])
         meanList[-1] += [np.mean(means[i][10:])for i in range(2)]
@@ -544,13 +551,12 @@ def changeThresh_Main():
     jCon = createjCon(info["sizeM"], info["jE"], info["jI"], info["K"])
     external = createExt(info["sizeM"],info["extM"], info["K"], info["meanExt"])     
     thresh = createThresh(info["sizeM"], info["threshM"], toDo["doThresh"])
-    (indiNeuronsDetailed, fireCount, nval_over_time, 
+    (indiNeuronsDetailed,  
             activeOT, fireOT, nval0
     ) = run_box( jCon, thresh, external, info, toDo,)
 
     plot_machine(
         activeOT, fireOT, indiNeuronsDetailed,
-        fireCount, nval_over_time,
         info, drw, toDo)
     
     info["meanExt"] = 0.1
@@ -559,13 +565,12 @@ def changeThresh_Main():
     for i in range(len(doThresh)):
         toDo["doThresh"] = doThresh[i]
         thresh = createThresh(info["sizeM"], info["threshM"], toDo["doThresh"])
-        (indiNeuronsDetailed, fireCount, nval_over_time, 
+        (indiNeuronsDetailed,  
                 activeOT, fireOT, nval0
         ) = run_box( jCon, thresh, external, info, toDo,)
 
         plot_machine(
             activeOT, fireOT, indiNeuronsDetailed,
-            fireCount, nval_over_time,
             info, drw, toDo)
 
 
@@ -581,15 +586,17 @@ def VanillaMain():
     thresh = createThresh(info["sizeM"], info["threshM"], toDo["doThresh"])
     
     #valueFolder = describe(toDo, info,0) 
-    (indiNeuronsDetailed, fireCount, nval_over_time, 
+    (indiNeuronsDetailed,   
             activeOT, fireOT, nval0
     ) = run_box( jCon, thresh, external, info, toDo,)
 
     plot_machine(
         activeOT, fireOT, indiNeuronsDetailed,
-        fireCount, nval_over_time,
         info, drw, toDo)
 
+###############################################################################
+############################# Customize Here ##################################
+###############################################################################
 def numParam():
     """
     Sets all parameters relevant to the simulation    
@@ -600,20 +607,18 @@ def numParam():
     figfolder = "../figs/testreihe_" + timestr
     valuefoldername = "../ValueVault/testreihe_"
     valueFolder     =  Path(valuefoldername + timestr)
-    timer           = 200
     extM            = np.array([1.,0.8])
     jE              = 2.
     jI              = 1.8
     threshM         = np.array([1., 0.7])
     tau             = 0.9
     meanExt         = 0.1
-    K               = 1000
     meanActi_at_0   = meanExt
     recNum          = 1
     ### Most changed vars ###
-    timer           = 50
+    timer           = 40
     K               = 1000
-    size            = 1000
+    size            = 2000
     sizeM           = np.array([size,size])
 
     info = locals()
@@ -638,10 +643,11 @@ def doParam():
     drw = locals()
     
     doThresh    = "constant" #"constant", "gauss", "bound"
-    doRand      = 0     #Only one Sequence per Routine
+    doRand      = 1     #Only one Sequence per Routine
+    doDet       = 0
 
     toDo = {}
-    for wrd in ("doThresh", "doRand"):
+    for wrd in ("doThresh", "doRand","doDet"):
         toDo[wrd] = locals()[wrd]
 
     plots.savefig_GLOBAL    = 1
@@ -672,7 +678,7 @@ Cython someday
 22.11.:
 Random Plots: dots
 alles ueberpruefen auf firing vs activation
-" at equally spaced times " poissoni Implementierung via (n+delta)tau
+" at equally spaced times " update_org Implementierung via (n+delta)tau
 n
 
 

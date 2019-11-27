@@ -1,4 +1,4 @@
-
+import warnings
 import numpy as np
 from pathlib import Path
 import pickle
@@ -47,6 +47,8 @@ def makeExistingPath(valueFolder, name, fileEnding):
         raise NameError("no file with this name exists")
 
 def checkFolder(figfolder):
+    if figfolder == "":
+        warnings.warn("\n\nEmpty Folder Address\n")
     folderpath = Path(figfolder)
     if not folderpath.exists():
         folderpath.mkdir()
