@@ -2,12 +2,17 @@ from pathlib import Path
 import math
 import numpy as np
 
+import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
+
+import scipy
 from scipy import special
-import scipy.integrate as integrate
 from scipy.stats import gaussian_kde
+import scipy.integrate as integrate
+import scipy.optimize  as optimize
+
 from collections import OrderedDict #grouped Labels
+import inspect
 
 import time
 
@@ -24,7 +29,7 @@ titletxt_GLOBAL     = ""
 captiontxt_GLOBAL   = ""
 
 ###############################################################################
-############################## Plotting Functions #############################
+############################## Utility Functions ##############################
 ###############################################################################
 
 def finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig,ignoreY=0):
@@ -41,7 +46,25 @@ def finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig,
         plt.show()
     plt.close(fig)
 
-
+def regr(func, x,y):
+    #extracts default values from function
+    signature = inspect.signature(func)
+    defaults =  [ v.default for k, v in signature.parameters.items()
+                if v.default is not inspect.Parameter.empty]
+    #actual fit
+    popt, pcov = scipy.optimize.curve_fit(func, x, y, p0=defaults)
+    #varr -> st_dev
+    perr = np.sqrt(np.diag(pcov))
+    #label
+    fit_label =  "Curve Fit: $"+(str(round(popt[0],3))+r'\pm'+str(round(perr[0],3)) 
+            + r"\cdot e^{" + str(round(popt[1],3))+r'\pm'+str(round(perr[1],3))+r"}$")
+    #y values for plot
+    y_pred = func(x,*popt)
+    plt.plot(x,y_pred,label=fit_label)
+    plt.legend()
+###############################################################################
+############################## Plotting Functions #############################
+###############################################################################
 
 def indiExtended(indiNeuronsDetailed, threshM, recNum):
     captiontxt = captiontxt_GLOBAL
@@ -161,22 +184,36 @@ def newMeanOT(mean_inputOT, isFire=0):
     name_of_plot    = "meanOT"
     finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)
      
+def fit_func(t,a,b):
+    return a*np.exp(b*t)
 
 def newInterspike(inputOT,timer,display_Log = 1):
+    def exponential(x,a=1,k=1):
+        return a*np.exp(x*k)
+    # matplotlib.rcParams['text.usetex'] = True
     inpSTART  = [np.array(row[:-1]) for row in inputOT]
     inpEND    = [np.array(row[1:])  for row in inputOT]
     inpDIFF   = [inpEND[i] - inpSTART[i] for i in range(len(inputOT))]
     flat_diff = np.array([x for row in inpDIFF for x in row])
 
     fig = plt.figure(tight_layout = True)
-    uniq = len(np.unique(flat_diff))
-    binsize = 10 if uniq <10 else uniq if uniq<timer else timer
-
-    plt.hist(flat_diff, bins = binsize, weights = np.ones(len(flat_diff))/len(flat_diff))
+    bin_range = np.arange(min(flat_diff), max(flat_diff),0.5)
+    weights_ = np.ones(len(flat_diff))/len(flat_diff)
+    n, binz, _ = plt.hist(flat_diff, bins = bin_range, weights = weights_)
     if display_Log:
         plt.yscale('log', nonposy='clip')
+    bincenters = 0.5*(binz[1:]+binz[:-1])
+    regr(exponential,bincenters,n)
+    # popt, pcov = scipy.optimize.curve_fit(exponential, bincenters, n, p0=[1,-0.5])
+    # perr = np.sqrt(np.diag(pcov))
+    # fit_label =  "Curve Fit: $"+(str(round(popt[0],3))+r'\pm'+str(round(perr[0],3)) 
+    #         + r"\cdot e^{" + str(round(popt[1],3))+r'\pm'+str(round(perr[1],3))+r"}$")
+    # y_pred = exponential(bincenters,*popt)
+    # plt.plot(bincenters,y_pred,label=fit_label)
+    # plt.legend()
 
-    name_of_plot    = "interspike"
+    # captiontxt = captiontxt_GLOBAL.replace('_','\_')
+    name_of_plot    = "interspike" 
     title_of_plot   = 'Interspike Interval' 
     xlabel_of_plot  = 'Time'+ '\n\n'+ captiontxt_GLOBAL
     ylabel_of_plot  = 'Density'
@@ -220,14 +257,16 @@ def mean_vs_ext(meanList, isFire = 0):
     ax = fig.add_subplot(111)
     pltColor = ['b','r']
     pltLabel = ['Excitatory','Inhibitory']
+    lstyle   = ['-','--']
     for i in range(2):
-        plt.scatter(meanList[0],meanList[i+1],color=pltColor[i],label=pltLabel[i])
+        plt.plot(meanList[0],meanList[i+1],color=pltColor[i],
+                    label=pltLabel[i],linestyle=lstyle[i], marker='o')
     plt.legend()
     ax.set_ylim(ymin=0)
     ax.set_xlim(xmin=0)
     title_of_plot   = '' 
-    if isFire   :   ylabel_of_plot  = 'Mean Rate'
-    else        :   ylabel_of_plot  = 'Mean Rate'
+    if isFire   :   ylabel_of_plot  = 'Mean of Firing Rate'
+    else        :   ylabel_of_plot  = 'Mean of Activation Rate'
     xlabel_of_plot  = 'External Rate'
     name_of_plot    = "mean_vs_ext"
     finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig)

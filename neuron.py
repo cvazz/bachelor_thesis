@@ -5,6 +5,7 @@
 import numpy as np
 import math
 import random 
+import scipy.stats as st
 
 import matplotlib.pyplot as plt
 
@@ -261,7 +262,12 @@ def update_org_det( nval, jCon, thresh, external,
                     indiNeuronsDetailed, randomProcess, info):
     (sizeM, maxTime, tau, recNum) = info["sizeM"],info["timer"], info["tau"], info['recNum']
     sizeMax = sum(sizeM)    
+    
+    class my_pdf(st.rv_continuous):
+        def _pdf(self,x, tau):
+            return x*math.exp(-x/tau)/(tau**2)  # Normalized over its range, in this case [0,1]
 
+    dist_R = my_pdf(a=0, name='my_pdf')
     ### New record containers ###
     activeOT = [[] for _ in range(sizeMax)]
     fireOT   = [[] for _ in range(sizeMax)]
@@ -281,7 +287,7 @@ def update_org_det( nval, jCon, thresh, external,
 
     while comb_Big_Time[0] < maxTime:
         # inhibite = 0 with likelihood of choosing excite
-        inhibite = int(comb_Big_Time[0]+combDelta[0][comb_Small_Time[0]] >
+        inhibite = int((comb_Big_Time[0]+combDelta[0][comb_Small_Time[0]])*dist_R >
                       (comb_Big_Time[1]+combDelta[1][comb_Small_Time[1]])*tau)
         # chooses the next neuron to be iterated through
         iterator = (combSequence[inhibite]
@@ -316,7 +322,6 @@ def update_org_det( nval, jCon, thresh, external,
     print("")
 
     return  activeOT, fireOT
-
 
 def update_org( nval, jCon, thresh, external,
                 indiNeuronsDetailed, randomProcess, info):
@@ -404,13 +409,75 @@ def update_org( nval, jCon, thresh, external,
     print("")
     return  activeOT, fireOT
 
+def update_org_for( nval, jCon, thresh, external,
+                indiNeuronsDetailed, randomProcess, info):
+
+
+
+    (sizeM, maxTime, tau, recNum) = info["sizeM"],info["timer"], info["tau"], info['recNum']
+    sizeMax = sum(sizeM)    
+    likelihood_of_choosing_excite =  tau / (1+tau)
+    ### New record containers ###
+    activeOT = [[] for _ in range(sizeMax)]
+    fireOT   = [[] for _ in range(sizeMax)]
+
+    comb_Big_Time   = [0, 0]        # is added up maxTime times before hard stop
+    comb_Small_Time = [0, 0]        # is added up N times before being resetted 
+    combMinSize     = np.array([0, sizeM[0]])
+    combMaxSize     = combMinSize + sizeM
+    combRange       = [np.arange(combMinSize[i],combMaxSize[i]) for i in range(2)]
+    combSequence    = []
+    for inhibite in range(2):
+        if randomProcess: 
+            combSequence.append(np.random.randint(
+                    combMinSize[inhibite],combMaxSize[inhibite], sizeM[inhibite]))
+        else:
+            combSequence.append( np.random.permutation(combRange[inhibite]))
+
+    while comb_Big_Time[0] < maxTime:
+        # inhibite = 0 with likelihood of choosing excite
+        inhibite = int(np.random.uniform(0,1)>likelihood_of_choosing_excite)
+        # chooses the next neuron to be iterated through
+        iterator = combSequence[inhibite][comb_Small_Time[inhibite]]
+        # records the first "recNum" values
+        recordPrecisely = iterator <recNum
+        # checks whether the neuron was just active
+        justActive = nval[iterator] 
+
+        result = timestepMat(iterator, nval, jCon,
+                thresh, external,  recordPrecisely,
+                combMinSize, combMaxSize)
+        ### if result is of type list it needs to be recorded ...
+        if isinstance(result, list):
+            indiNeuronsDetailed[iterator].append(result)
+            # ... and converted back to a float value
+            result = result[1] - thresh[iterator]
+        ### Record Activation
+        if result >= 0:
+            temp = comb_Big_Time[0]+comb_Small_Time[0]/sizeM[0]
+            activeOT[iterator].append(temp)
+            if not justActive:
+                fireOT[iterator].append(temp)
+
+        comb_Small_Time[inhibite] +=1
+        ### End of comb_Small_Time Sequence
+        if comb_Small_Time[inhibite] >= sizeM[inhibite]:
+            comb_Big_Time[inhibite] +=1
+            comb_Small_Time[inhibite] = 0
+            if randomProcess: 
+                combSequence[inhibite]  = np.random.randint(
+                    combMinSize[inhibite],combMaxSize[inhibite], sizeM[inhibite])
+            else:
+                combSequence[inhibite] = np.random.permutation(combRange[inhibite])
+            if comb_Big_Time[0] % 10 == 0 and not inhibite:
+                print(f"{(comb_Big_Time[0]/maxTime):.0%}", end=", ", flush=True)
+    print("")
+    return  activeOT, fireOT
 
 ###############################################################################
 ########################### Setup Functions ###################################
 ###############################################################################
-def prepare(info,
-    # K, meanExt, tau, sizeE, sizeI, extE, extI, jE, jI, threshE, threshI,
-    toDo):
+def prepare(info, toDo):
     """
     creates all the needed objects and calls the workload functions and plots.
     Virtually a VanillaMain function, without parameter definition
@@ -435,7 +502,7 @@ def run_box( jCon, thresh, external, info, toDo ):
     valueFolder = describe( toDo, info, 0 )
 
     ### Th function ###
-    nval = createNval(info["sizeM"], info["meanActi_at_0"])  
+    nval = createNval(info["sizeM"], info["meanStartActi"])  
     nval0 = nval.copy()
     indiNeuronsDetailed = [[] for i in range(info['recNum'])] 
     if toDo["doDet"]:
@@ -514,13 +581,12 @@ def plot_machine(
         plots.newDistri(activeOT, timer)
     if drw["newMeanOT"]:
         plots.newMeanOT(mean_actiOT)
-    if drw["nInter"]:
+    if drw["dots2"]:
+        plots.dots2(activeOT, timer)
+    if drw["nInter_log"]:
         plots.newInterspike(fireOT,timer)
     if drw["nInter"]:
         plots.newInterspike(fireOT,timer,0)
-    if drw["dots2"]:
-        plots.dots2(activeOT, timer)
-
 def changeExt_Main():
     info = numParam()
     toDo = doParam()[1]
@@ -547,27 +613,36 @@ def changeThresh_Main():
     (drw, toDo) = doParam()
 
     ### Create constant inputs to function
-    info["meanExt"] = 0.04
     jCon = createjCon(info["sizeM"], info["jE"], info["jI"], info["K"])
     external = createExt(info["sizeM"],info["extM"], info["K"], info["meanExt"])     
-    thresh = createThresh(info["sizeM"], info["threshM"], toDo["doThresh"])
-    (indiNeuronsDetailed,  
-            activeOT, fireOT, nval0
-    ) = run_box( jCon, thresh, external, info, toDo,)
-
-    plot_machine(
-        activeOT, fireOT, indiNeuronsDetailed,
-        info, drw, toDo)
-    
-    info["meanExt"] = 0.1
-    external = createExt(info["sizeM"],info["extM"], info["K"], info["meanExt"])     
-    doThresh    = ["constant","gauss", "bound"]
+    doThresh    = ["constant", "gauss", "bound"]
     for i in range(len(doThresh)):
         toDo["doThresh"] = doThresh[i]
         thresh = createThresh(info["sizeM"], info["threshM"], toDo["doThresh"])
         (indiNeuronsDetailed,  
                 activeOT, fireOT, nval0
         ) = run_box( jCon, thresh, external, info, toDo,)
+
+        plot_machine(
+            activeOT, fireOT, indiNeuronsDetailed,
+            info, drw, toDo)
+
+def version_Main():
+    ### Specify Parameters 
+    info = numParam()
+    (drw, toDo) = doParam()
+
+    ### Create constant inputs to function
+    jCon = createjCon(info["sizeM"], info["jE"], info["jI"], info["K"])
+    external = createExt(info["sizeM"],info["extM"], info["K"], info["meanExt"])     
+    thresh = createThresh(info["sizeM"], info["threshM"], toDo["doThresh"])
+    versions = [[0,0],
+                [0,1],
+                [1,0]]
+    for vers in versions:
+        toDo["doRand"],toDo["doDet"] = vers
+        (indiNeuronsDetailed, activeOT, fireOT, nval0
+        ) =     run_box( jCon, thresh, external, info, toDo,)
 
         plot_machine(
             activeOT, fireOT, indiNeuronsDetailed,
@@ -613,12 +688,12 @@ def numParam():
     threshM         = np.array([1., 0.7])
     tau             = 0.9
     meanExt         = 0.1
-    meanActi_at_0   = meanExt
+    meanStartActi   = meanExt
     recNum          = 1
     ### Most changed vars ###
-    timer           = 40
+    timer           = 100
     K               = 1000
-    size            = 2000
+    size            = 1000
     sizeM           = np.array([size,size])
 
     info = locals()
@@ -631,19 +706,16 @@ def doParam():
     specifies most behaviors of 
     """
     #Bools for if should be peotted or not
-    pActiDist   = 1 # obsolete
-    pIndiExt    = 1
-    pInterspike = 0 # obsolete
-    pDots       = 0 # obsolete
-    pMeanOT     = 0 # obsolete
-    nDistri     = 1
-    newMeanOT   = 1
-    nInter      = 1
-    dots2       = 1
+    pIndiExt    = 0
+    nDistri     = 0
+    newMeanOT   = 0
+    nInter      = 0
+    nInter_log  = 1
+    dots2       = 0
     drw = locals()
     
     doThresh    = "constant" #"constant", "gauss", "bound"
-    doRand      = 1     #Only one Sequence per Routine
+    doRand      = 0     #Only one Sequence per Routine
     doDet       = 0
 
     toDo = {}
@@ -656,30 +728,26 @@ def doParam():
 
 if __name__ == "__main__":
     #changeExt_Main()   
-    VanillaMain()
     #changeThresh_Main()
+    #version_Main()
+    VanillaMain()
+    pass
+def test():
+    class my_pdf(st.rv_continuous):
+        def _pdf(self,x, tau):
+            return x*math.exp(-x/tau)/(tau**2)  # Normalized over its range, in this case [0,1]
+
+    dist_R = my_pdf(a=0, name='my_pdf')
+    x = dist_R(tau = 1)
+    print(x)
 
 ###############################################################################
 ################################## To Dos #####################################
 ###############################################################################
 """
-Rewrite Recover and SaveResults
-Remove Obsolete Plots
-Plot meanOT vs meanExt
-Extra Analysis function for plot calls and more
-
-Value and Figure Folder one layer above github
-Google Name Change Github Folder
-
-((((Implausible: Structure: 2 Arrays: One index tracker and the actual nval function))))
-Cython someday
-
-
-22.11.:
-Random Plots: dots
-alles ueberpruefen auf firing vs activation
-" at equally spaced times " update_org Implementierung via (n+delta)tau
-n
-
+meanExt change what happens, linear read out durch logisitic regression oder pseudo inverse
+Trainieren auf entscheidung jetzt, in 1, in 2...
+immer 2 Neuronen pro Zeit
+input 1 Zeitschritt 1 oder 0 übergeben
 
 """
