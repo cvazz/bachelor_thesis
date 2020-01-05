@@ -71,15 +71,19 @@ name_dict = {
     "extE":         "Relative External Input to Excitatory",
     "extI":         "Relative External Input to Inhibitory",
     "meanExt":      "External neuron mean activation", 
+    "doThresh":     "Define shape of threshold distribution",
+    "doUpdating":   "Define Update Mechanism",
+    "pIndiExt":     "Plot Input to a Single Neuron",
+    "nDistri":      "Plot Distribution of Firing Rate",
+    "newMeanOT":    "Plot Mean Activation Over Time",
+    "nInter":       "Plot Interspike Intervals",
+    "nInter_log":   "Plot Interspike Intervals (logarithmic scale)",
+    "dots2":        "Plot Input to a Single Neuron",
 }
 
 def make_drw():
-    pIndiExt    = 1
-    nDistri     = 1
-    newMeanOT   = 1
-    nInter      = 1
-    nInter_log  = 1
-    dots2       = 1
+    pass
+
     return locals()
 
 class ValueUnit(QHBoxLayout):
@@ -100,7 +104,9 @@ class ValueUnit(QHBoxLayout):
         
 
         self.label = QLabel(name_dict[name]+ ":\t")
-        self.label.setAlignment(Qt.AlignCenter)
+        self.label.setAlignment(Qt.AlignLeft)
+        self.label.setFixedWidth(250)
+
         self.val = default
         self.name = name
         # self.slider.setRange(math.log10(min_range), math.log10(max_range))
@@ -134,7 +140,9 @@ class MiniUnit(QHBoxLayout):
         lbl_txt = name_dict[name]
         self.val = default
         self.label = QLabel(lbl_txt+ ":\t")
-        self.label.setAlignment(Qt.AlignCenter)
+        self.label.setAlignment(Qt.AlignLeft)
+        self.label.setFixedWidth(250)
+
         self.numbox = QDoubleSpinBox()
         self.numbox.setRange(min_range, max_range)
         self.numbox.valueChanged.connect(lambda x: self.numChange(x))
@@ -143,6 +151,48 @@ class MiniUnit(QHBoxLayout):
         self.addWidget(self.label)
         self.addWidget(self.numbox)
 
+def initQt(name):
+    lbl_txt     = name_dict[name]
+    label = QLabel(lbl_txt+ ":\t")
+    label.setAlignment(Qt.AlignLeft)
+    label.setFixedWidth(250)
+    return name, label
+
+class Haken(QHBoxLayout):
+    def __init__(self,name = "Error", default = True, *args, **kwargs):
+        super(QHBoxLayout, self).__init__(*args, **kwargs)
+
+        self.name, self.label = initQt(name)
+        check  = QCheckBox()
+        check.setChecked(default)
+        self.val = default
+        check.stateChanged.connect(lambda:self.choice(check))
+
+        self.addWidget(self.label)
+        self.addWidget(check)
+
+    def choice(self, box):
+        self.val = box.isChecked()
+        print(self.val)
+
+class Dropdown(QHBoxLayout):
+    def __init__(self,name = "Eat Healthy", strings = ["Missing",], *args, **kwargs):
+        super(QHBoxLayout, self).__init__(*args, **kwargs)
+
+        self.name, self.label = initQt(name)
+        dropThresh  = QComboBox()
+        for string in strings:
+            dropThresh.addItem(string)
+        default = strings[0]
+        self.val = default
+        dropThresh.activated[str].connect(self.choice)
+
+        self.addWidget(self.label)
+        self.addWidget(dropThresh)
+
+    def choice(self, text):
+        self.val = text
+        print(self.val)
 class InputLayout(QVBoxLayout):
 
     range_dict = {
@@ -160,6 +210,18 @@ class InputLayout(QVBoxLayout):
         "extI":             [0, 1, .8],
         "meanExt":          [0, 1, .1],
     }
+    drop_dict = {
+        "doThresh":     ["bounded", "constant", "gaussian"],
+        "doUpdating":   ["stochastic","strict","deterministic"]
+    }
+    check_dict = {
+    "pIndiExt":         1,
+    "nDistri":          1,
+    "newMeanOT":        1,
+    "nInter":           1,
+    "nInter_log":       1,
+    "dots2":            1,
+    }
     def __init__(self, *args, **kwargs):
         super(QVBoxLayout, self).__init__(*args, **kwargs)
 
@@ -168,14 +230,45 @@ class InputLayout(QVBoxLayout):
             else:           layout  = MiniUnit (key,*val)
             layout.setObjectName("inp_%s" %key)
             self.addLayout(layout)
+        for key,txt in self.drop_dict.items():
+            drop = Dropdown(key,txt)
+            drop.setObjectName("inp_%s" %key)
+            self.addLayout(drop)
+        for key,default in self.check_dict.items():
+            check = Haken(key,default)
+            check.setObjectName("inp_%s" %key)
+            self.addLayout(check)
+
         exec_button = QPushButton("Run")
         exec_button.clicked.connect(self.run)
         self.addWidget(exec_button, alignment = Qt.AlignRight)
-    
-    def run(self):
-        items = (self.itemAt(i) for i in range(self.count()) 
-                if isinstance(self.itemAt(i),ValueUnit)
-                or isinstance(self.itemAt(i),MiniUnit)) 
+
+    def make_toDo(self,items):
+        drop = {}
+        for w in items:
+            drop[w.name] = w.val
+
+        doThresh    = "constant" #"constant", "gauss", "bound"
+        doThresh    = drop["doThresh"]
+        doRand      = 0     #Only one Sequence per Routine
+        doDet       = 0
+        doUpdating  = drop["doUpdating"]
+        if drop["doUpdating"] == "stochastic":
+            doDet           = 0
+            doRand          = 1
+        elif drop["doUpdating"] == "deterministic":
+            doDet           = 0
+            doRand          = 0
+        elif drop["doUpdating"] == "strict":
+            doDet           = 1
+            doRand          = 0
+
+        toDo = {}
+        for wrd in ("doThresh", "doRand","doDet","doUpdating"):
+            toDo[wrd] = locals()[wrd]
+        return toDo
+
+    def make_info(self, items):
         timestr = time.strftime("%y%m%d_%H%M")
         figfolder = "../figs/testreihe_" + timestr
         valuefoldername = "../ValueVault/testreihe_"
@@ -189,16 +282,25 @@ class InputLayout(QVBoxLayout):
         info['extM'] = np.array([info.pop('extE'),info.pop('extI')])
         info['threshM'] = np.array([info.pop('threshE'),info.pop('threshI')])
         info['sizeM'] = np.array([info['size'],info.pop('size')])
+        return info
 
-        drw = make_drw()
-    
-        doThresh    = "constant" #"constant", "gauss", "bound"
-        doRand      = 0     #Only one Sequence per Routine
-        doDet       = 0
+    def run(self):
+        items = (self.itemAt(i) for i in range(self.count()) 
+                if isinstance(self.itemAt(i),ValueUnit)
+                or isinstance(self.itemAt(i),MiniUnit))
 
-        toDo = {}
-        for wrd in ("doThresh", "doRand","doDet"):
-            toDo[wrd] = locals()[wrd]
+        info = self.make_info(items)
+
+        drw_items = (self.itemAt(i) for i in range(self.count()) 
+                if isinstance(self.itemAt(i),Haken)) 
+        drw = {}
+        for w in drw_items:
+            drw[w.name] = w.val
+
+        drop_items = (self.itemAt(i) for i in range(self.count()) 
+                if isinstance(self.itemAt(i),Dropdown)) 
+        toDo = self.make_toDo(drop_items)
+
         plots.savefig_GLOBAL    = 1
         plots.showPlots_GLOBAL  = 0
         ### Create constant inputs to function

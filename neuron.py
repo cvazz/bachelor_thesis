@@ -154,8 +154,8 @@ def createNval(sizeM, activeAtStart):
 
 def createThresh(sizeM, threshM, doThresh):
     if   (doThresh == "constant"): thresh = createConstantThresh(sizeM, threshM)  
-    elif (doThresh == "gauss"   ): thresh = createGaussThresh(sizeM, threshM)  
-    elif (doThresh == "bound"   ): thresh = createBoundThresh(sizeM, threshM)  
+    elif (doThresh == "gaussian"   ): thresh = createGaussThresh(sizeM, threshM)  
+    elif (doThresh == "bounded"   ): thresh = createBoundThresh(sizeM, threshM)  
     else: raise NameError ("Invalid threshold codeword selected")
     thresh.setflags(write=False)
     return thresh
@@ -259,7 +259,7 @@ def timestepMat (iter, nval, jCon, thresh, external,
 
 
 def update_org_det( nval, jCon, thresh, external,
-                    indiNeuronsDetailed, randomProcess, info):
+                    indiNeuronsDetailed, info):
     (sizeM, maxTime, tau, recNum) = info["sizeM"],info["timer"], info["tau"], info['recNum']
     sizeMax = sum(sizeM)    
     
@@ -409,6 +409,9 @@ def update_org( nval, jCon, thresh, external,
     print("")
     return  activeOT, fireOT
 
+    # for i,t in enumerate(intervals):
+    #     info["timer"] = t
+    #     external = createExt(info["sizeM"],info["extM"], info["K"],meanExt_M[is_high[i]])
 def update_org_for( nval, jCon, thresh, external,
                 indiNeuronsDetailed, randomProcess, info):
 
@@ -492,6 +495,86 @@ def prepare(info, toDo):
 
     return jCon, thresh, external
 
+def convert(toDo):
+    if toDo["doUpdating"] == "stochastic":
+        doDet           = 0
+        randomProcess   = 1
+    elif toDo["doUpdating"] == "deterministic":
+        doDet           = 0
+        randomProcess   = 0
+    elif toDo["doUpdating"] == "strict":
+        doDet           = 1
+        randomProcess   = 0
+    return doDet, randomProcess
+def run_length(prob_change_hl,length):
+    switches = np.random.binomial(1,prob_change_hl,length)
+    count = 0
+    intervals=[]
+    is_high = [bool(np.random.binomial(1,0.5))]
+    for i in range(len(switches)):
+        count += 1
+        if switches[i]:
+            intervals.append(count)
+            count=0
+            is_high.append(not is_high[-1])
+    is_high = np.array(is_high)*1
+    is_it_really_high = []
+    for i, val in enumerate(intervals):
+        for _ in range(val):
+            is_it_really_high.append(is_high)
+
+    return intervals, is_high
+    
+
+def convert_output(xOT,timer):
+    intOT = [np.trunc(row) for row in xOT]
+    output = []
+    for row in intOT:
+        output.append([])
+        for i in range(timer):
+            output[-1].append(int(i in row))
+    return output
+
+    # for i,t in enumerate(intervals):
+    #     info["timer"] = t
+    #     external = createExt(info["sizeM"],info["extM"], info["K"],meanExt_M[is_high[i]])
+def run_wonder( jCon, thresh, external, info, toDo, prob_change_hl, length, meanExt_M):
+    """
+    executes the differen sequences
+    """ 
+    print("run")
+    timestart = time.time()
+    valueFolder = describe( toDo, info, 0 )
+    doDet, randomProcess = convert(toDo)
+
+    intervals, is_high = run_length(prob_change_hl,length)
+
+    ### The function ###
+    nval = createNval(info["sizeM"], info["meanStartActi"])  
+    nval0 = nval.copy()
+    indiNeuronsDetailed = [[] for i in range(info['recNum'])] 
+    if toDo["doDet"]:
+        if toDo["doDet"] == doDet:print (True) 
+        activeOT, fireOT = update_org_det( nval, jCon, thresh, external,
+                                indiNeuronsDetailed, info)
+    else:
+        if toDo["doDet"] == doDet:print (True) 
+        activeOT, fireOT = update_org( nval, jCon, thresh, external,
+                                indiNeuronsDetailed, toDo["doRand"], info)
+
+    ### time check ###
+    timeend = time.time()
+    print("runtime of routine")
+    utils.timeOut(timeend - timestart)
+
+    saveResults(valueFolder, indiNeuronsDetailed, 
+                activeOT, fireOT, info, toDo)
+    # (indiNeuronsDetailed, activeOT, fireOT, nval_OT, info, toDo
+    # )= recoverResults(valueFolder)
+
+    return (indiNeuronsDetailed,   
+            activeOT, fireOT, nval0)
+
 
 def run_box( jCon, thresh, external, info, toDo ):
     """
@@ -501,14 +584,18 @@ def run_box( jCon, thresh, external, info, toDo ):
     timestart = time.time()
     valueFolder = describe( toDo, info, 0 )
 
-    ### Th function ###
+    doDet, randomProcess = convert(toDo)
+
+    ### The function ###
     nval = createNval(info["sizeM"], info["meanStartActi"])  
     nval0 = nval.copy()
     indiNeuronsDetailed = [[] for i in range(info['recNum'])] 
     if toDo["doDet"]:
+        if toDo["doDet"] == doDet:print (True) 
         activeOT, fireOT = update_org_det( nval, jCon, thresh, external,
-                                  indiNeuronsDetailed, toDo["doRand"], info)
+                                  indiNeuronsDetailed, info)
     else:
+        if toDo["doDet"] == doDet:print (True) 
         activeOT, fireOT = update_org( nval, jCon, thresh, external,
                                   indiNeuronsDetailed, toDo["doRand"], info)
 
@@ -537,6 +624,32 @@ def describe( toDo, info, figs ):
         captiontxt += f",\n stochastic Updates"
         shorttxt += "_rY"
     elif toDo["doDet"]:
+        captiontxt += ",\n strictly deterministic Updates"
+        shorttxt += "_rNN"
+    else:
+        captiontxt += ",\n deterministic Updates"
+        shorttxt += "_rN"
+
+    update_rule = updating()
+    captiontxt_strings = [
+        ",\n stochastic Updates",
+        ",\n strictly deterministic Updates",
+        ",\n deterministic Updates"
+    ]
+    shorttxt_strings = ["_rY","_rNN","_rN"]
+
+    update_rule = updating()
+    for i,rule in enumerate(update_rule):
+        if toDo["doUpdating"] == rule:
+            captiontxt  += captiontxt_strings[i]
+            shorttxt    += shorttxt_strings[i]
+
+
+
+    if toDo["doUpdating"] == "stochastic":
+        captiontxt += f",\n stochastic Updates"
+        shorttxt += "_rY"
+    elif toDo["doUpdating"] == "strict":
         captiontxt += ",\n strictly deterministic Updates"
         shorttxt += "_rNN"
     else:
@@ -649,6 +762,24 @@ def version_Main():
             info, drw, toDo)
 
 
+def MachineMain():
+    ### Specify Parameters 
+    info = numParam()
+    (drw, toDo) = doParam()
+
+    ### Create constant inputs to function
+    jCon = createjCon(info["sizeM"], info["jE"], info["jI"], info["K"])
+    external = createExt(info["sizeM"],info["extM"], info["K"], info["meanExt"])     
+    thresh = createThresh(info["sizeM"], info["threshM"], toDo["doThresh"])
+    
+    #valueFolder = describe(toDo, info,0) 
+    (indiNeuronsDetailed,   
+            activeOT, fireOT, nval0
+    ) = run_box( jCon, thresh, external, info, toDo,)
+
+    plot_machine(
+        activeOT, fireOT, indiNeuronsDetailed,
+        info, drw, toDo)
 
 def VanillaMain():
     ### Specify Parameters 
@@ -701,6 +832,9 @@ def numParam():
     info.pop("size")
     return info
 
+def updating():
+    return ["stochastic","strict","deterministic"]
+
 def doParam():
     """
     specifies most behaviors of 
@@ -714,12 +848,13 @@ def doParam():
     dots2       = 0
     drw = locals()
     
-    doThresh    = "constant" #"constant", "gauss", "bound"
+    doThresh    = "constant" #"constant", "gaussian", "bounded"
+    doUpdating  = "deterministic"
     doRand      = 0     #Only one Sequence per Routine
     doDet       = 0
 
     toDo = {}
-    for wrd in ("doThresh", "doRand","doDet"):
+    for wrd in ("doThresh", "doRand","doDet","doUpdating"):
         toDo[wrd] = locals()[wrd]
 
     plots.savefig_GLOBAL    = 1
