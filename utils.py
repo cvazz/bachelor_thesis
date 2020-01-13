@@ -3,8 +3,7 @@ import numpy as np
 from pathlib import Path
 import pickle
 
-
-def mostRecent(vfolder):
+def mostRecent(vfolder,name2ignore):
     """
     Finds last added "testreihe" in given folder
     
@@ -46,13 +45,13 @@ def makeExistingPath(valueFolder, name, fileEnding):
     else: 
         raise NameError("no file with this name exists")
 
-def checkFolder(figfolder):
-    if figfolder == "":
+def checkFolder(folder):
+    if folder == "":
         warnings.warn("\n\nEmpty Folder Address\n")
-    folderpath = Path(figfolder)
+    folderpath = Path(folder)
     if not folderpath.exists():
         folderpath.mkdir()
-    return figfolder + "/"
+    return folder + "/"
 
 def relMax(fireCount,showRange):
     return np.argpartition(fireCount, -1*showRange)[-1*showRange:]

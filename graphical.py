@@ -59,7 +59,30 @@ class DoubleSlider(QSlider):
         self.setMinimum(min)
 
 name_dict = {
-    "size":         "Size of each",        
+    "size":         "Size",        
+    "K":            "Connection Value K",
+    "timer":        "Time",
+    "jE":           "Weight J_IE",
+    "jI":           "Weight J_II",
+    "tau":          "Relative Update time Tau ",
+    "threshE":      "Excitatory threshold",
+    "threshI":      "Inhibitory threshold",
+    "meanStartActi":"meanActivation at time 0",
+    "extE":         "External Input to Excitatory ExtE",
+    "extI":         "External Input to Inhibitory ExtI",
+    "meanExt":      "External mean activation", 
+    "doThresh":     "Shape of threshold distribution",
+    "doUpdating":   "Update Mechanism",
+    "pIndiExt":     "Plot Input to a Single Neuron",
+    "nDistri":      "Plot Distribution of Firing Rate",
+    "newMeanOT":    "Plot Mean Activation Over Time",
+    "nInter":       "Plot Interspike Intervals",
+    "nInter_log":   "Plot Interspike Intervals (logarithmic scale)",
+    "dots2":        "Plot Input to a Single Neuron",
+}
+
+desc_dict = {
+    "size":         "Size of each cluster of neurons, excitatory and inhibitory",        
     "K":            "Connection Value K",
     "timer":        "Number of runs",
     "jE":           "Weight for Inhibitory to Excitatory Neurons J_IE",
@@ -102,13 +125,14 @@ class ValueUnit(QHBoxLayout):
     def __init__(self,name = "Eat Dicks", min_range = 10, max_range = 10000, default = 100, *args, **kwargs):
         super(QHBoxLayout, self).__init__(*args, **kwargs)
         
-
-        self.label = QLabel(name_dict[name]+ ":\t")
-        self.label.setAlignment(Qt.AlignLeft)
-        self.label.setFixedWidth(250)
+        self.name, self.label = initQt(name)
+        # self.label = QLabel(name_dict[name]+ ":\t")
+        # self.label.setAlignment(Qt.AlignLeft)
+        # self.label.setFixedWidth(250)
+        # self.label.setToolTip("Wasdf;asldk;asdf;klsdf")
 
         self.val = default
-        self.name = name
+        # self.name = name
         # self.slider.setRange(math.log10(min_range), math.log10(max_range))
         if max_range < 10:
             self.numbox = QDoubleSpinBox()
@@ -136,12 +160,12 @@ class MiniUnit(QHBoxLayout):
         super(QHBoxLayout, self).__init__(*args, **kwargs)
         
 
-        self.name= name
-        lbl_txt = name_dict[name]
+        self.name, self.label= initQt(name)
+        # lbl_txt = name_dict[name]
         self.val = default
-        self.label = QLabel(lbl_txt+ ":\t")
-        self.label.setAlignment(Qt.AlignLeft)
-        self.label.setFixedWidth(250)
+        # self.label = QLabel(lbl_txt+ ":\t")
+        # self.label.setAlignment(Qt.AlignLeft)
+        # self.label.setFixedWidth(250)
 
         self.numbox = QDoubleSpinBox()
         self.numbox.setRange(min_range, max_range)
@@ -156,6 +180,9 @@ def initQt(name):
     label = QLabel(lbl_txt+ ":\t")
     label.setAlignment(Qt.AlignLeft)
     label.setFixedWidth(250)
+    label.setToolTip(desc_dict[name])
+    newfont = QFont("Times", 16)
+    label.setFont(newfont)
     return name, label
 
 class Haken(QHBoxLayout):
@@ -285,6 +312,7 @@ class InputLayout(QVBoxLayout):
         return info
 
     def run(self):
+        
         items = (self.itemAt(i) for i in range(self.count()) 
                 if isinstance(self.itemAt(i),ValueUnit)
                 or isinstance(self.itemAt(i),MiniUnit))
@@ -329,9 +357,26 @@ class MainWindow(QMainWindow):
         self.inputLayout = InputLayout()
         self.label2 = QLabel("THIS2")
         
+        self.principal = QHBoxLayout()
+        self.principal.addLayout(self.inputLayout )
+        loc ="../figs/testreihe_200110_1644_S3_K2_m1_t10_rY/IndiExt.png"
+        self.label = QLabel("Hallo")
+        self.label.setText("Heasf;lkasdf")
+        img = QPixmap('image.jpg')
+        scaled_img = img.scaled(self.label.size(), Qt.KeepAspectRatio)
+        self.label.setPixmap(scaled_img)
+        self.principal.addWidget(self.label)
         widget = QWidget()
-        widget.setLayout(self.inputLayout )
+        widget.setLayout(self.principal)
         self.setCentralWidget(widget)
+
+class Principal(QHBoxLayout):
+
+    def __init__(self, *args, **kwargs):
+        super(QVBoxLayout, self).__init__(*args, **kwargs)
+        self.principal = QHBoxLayout
+        self.principal.addLayout(self.inputLayout )
+        loc ="../figs/testreihe_200110_1644_S3_K2_m1_t10_rY/IndiExt.png"
 
 
 class Color(QWidget):
@@ -345,3 +390,8 @@ app = QApplication(sys.argv)
 window = MainWindow()
 window.show()
 app.exec_()
+"""
+Bild auf rechte Seite
+Freeze while processing
+Namen kurz mit Erklärung
+"""

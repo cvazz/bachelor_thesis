@@ -12,9 +12,15 @@ import matplotlib.pyplot as plt
 ### File Interaction and Manipulation ###
 from pathlib import Path
 import pickle
+import joblib #dump,load
 
 ### Duh ###
 import time
+### Machine Learning
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+# from sklearn.naive_bayes import GaussianNB
+# from sklearn.linear_model import PassiveAggressiveClassifier
 
 ### Local Modules ###
 import mathsim as msim
@@ -272,6 +278,7 @@ def update_org_det( nval, jCon, thresh, external,
     activeOT = [[] for _ in range(sizeMax)]
     fireOT   = [[] for _ in range(sizeMax)]
 
+    tauM           = [1, tau]
     comb_Big_Time   = [0, 0]        # is added up maxTime times before hard stop
     comb_Small_Time = [0, 0]        # is added up N times before being resetted 
     combMinSize     = np.array([0, sizeM[0]])
@@ -283,12 +290,13 @@ def update_org_det( nval, jCon, thresh, external,
         combDelta.append( np.random.uniform(0,1,sizeM[inhibite]))
         combDelta[inhibite].sort()
         combSequence.append( np.random.permutation(combRange[inhibite]))
+    rand_val = [dist_R.rvs(tau=tauM[inhibite],size=sizeM[inhibite]) for inhibite in range(2)]
 
 
     while comb_Big_Time[0] < maxTime:
         # inhibite = 0 with likelihood of choosing excite
-        inhibite = int((comb_Big_Time[0]+combDelta[0][comb_Small_Time[0]])*dist_R >
-                      (comb_Big_Time[1]+combDelta[1][comb_Small_Time[1]])*tau)
+        inhibite = int((comb_Big_Time[0]+combDelta[0][comb_Small_Time[0]])*rand_val[0][comb_Small_Time[0]] >
+                      (comb_Big_Time[1]+combDelta[1][comb_Small_Time[1]])*tau*rand_val[1][comb_Small_Time[1]])
         # chooses the next neuron to be iterated through
         iterator = (combSequence[inhibite]
         [comb_Small_Time[inhibite]])
@@ -317,6 +325,7 @@ def update_org_det( nval, jCon, thresh, external,
         if comb_Small_Time[inhibite] >= sizeM[inhibite]:
             comb_Big_Time[inhibite] +=1
             comb_Small_Time[inhibite] = 0
+            rand_val[inhibite] = dist_R.rvs(tau=tauM[inhibite],size=sizeM[inhibite]) 
             if comb_Big_Time[0] % 10 == 0 and not inhibite:
                 print(f"{(comb_Big_Time[0]/maxTime):.0%}", end=", ", flush=True)
     print("")
@@ -350,8 +359,10 @@ def update_org( nval, jCon, thresh, external,
 
 
     (sizeM, maxTime, tau, recNum) = info["sizeM"],info["timer"], info["tau"], info['recNum']
+    #1
     sizeMax = sum(sizeM)    
     likelihood_of_choosing_excite =  tau / (1+tau)
+
     ### New record containers ###
     activeOT = [[] for _ in range(sizeMax)]
     fireOT   = [[] for _ in range(sizeMax)]
@@ -362,12 +373,14 @@ def update_org( nval, jCon, thresh, external,
     combMaxSize     = combMinSize + sizeM
     combRange       = [np.arange(combMinSize[i],combMaxSize[i]) for i in range(2)]
     combSequence    = []
+
     for inhibite in range(2):
         if randomProcess: 
             combSequence.append(np.random.randint(
                     combMinSize[inhibite],combMaxSize[inhibite], sizeM[inhibite]))
         else:
             combSequence.append( np.random.permutation(combRange[inhibite]))
+    #2
 
     while comb_Big_Time[0] < maxTime:
         # inhibite = 0 with likelihood of choosing excite
@@ -399,6 +412,7 @@ def update_org( nval, jCon, thresh, external,
         if comb_Small_Time[inhibite] >= sizeM[inhibite]:
             comb_Big_Time[inhibite] +=1
             comb_Small_Time[inhibite] = 0
+            #3
             if randomProcess: 
                 combSequence[inhibite]  = np.random.randint(
                     combMinSize[inhibite],combMaxSize[inhibite], sizeM[inhibite])
@@ -407,19 +421,66 @@ def update_org( nval, jCon, thresh, external,
             if comb_Big_Time[0] % 10 == 0 and not inhibite:
                 print(f"{(comb_Big_Time[0]/maxTime):.0%}", end=", ", flush=True)
     print("")
-    return  activeOT, fireOT
+    
+    return  activeOT, fireOT, #4
+
+def make_chain_OLD(prob_change_hl,length):
+    start = np.random.binomial(1,.5)
+    switches = np.random.binomial(1,prob_change_hl,length-1)
+    chain =[int(start)]
+    for switch in switches:
+        # if switch:
+        #     chain.append(int(not chain[-1]))
+        # else :
+        #     chain.append(chain[-1])
+            chain.append(int(not chain[-1]) if switch else chain[-1])
+    print(len(chain))
+    return chain
+
+def transform2binary(xOT,timer):
+    intOT = [np.trunc(row) for row in xOT]
+    output = []
+    for row in intOT:
+        output.append([])
+        for i in range(timer):
+            output[-1].append(int(i in row))
+    return np.transpose(output)
 
     # for i,t in enumerate(intervals):
     #     info["timer"] = t
     #     external = createExt(info["sizeM"],info["extM"], info["K"],meanExt_M[is_high[i]])
-def update_org_for( nval, jCon, thresh, external,
+
+def update_org_WIP( nval, jCon, thresh, external,
                 indiNeuronsDetailed, randomProcess, info):
+    """
+    Selects the sequence of updates and records results on the fly
+
+    Randomly chooses between excitatory or inhibitory sequence with relative likelihood tau 
+    to choose inhibitory (ie 1 meaning equally likely).
+    Each round a new permutation of range is drawn
+    Currently only supports recording individual excitatory neurons for indiNeuronsDetailed
+
+
+    :param      maxTime : Controls runtime
+    :param      sizeM   : Contains information over the network size
+    :param      tau     : How often inhibitory neurons fire compared to excitatory
+    :param      nval    : current values of all neurons, is CHANGED to reflect new value within function 
+    :param      jCon    : Connection Matrix 
+    :param      thresh  : Stores Thresholds 
+    :param      external: Input from external Neurons 
+    :param      indiNeuronsDetailed: 
+    :param      recNum  : How many neurons are recorded 
+
+    :return     nvalOvertime
+    """
 
 
 
     (sizeM, maxTime, tau, recNum) = info["sizeM"],info["timer"], info["tau"], info['recNum']
+    (prob_change_hl, meanExt_M) = info["prob_change_hl"],info["meanExt_M"] 
     sizeMax = sum(sizeM)    
     likelihood_of_choosing_excite =  tau / (1+tau)
+
     ### New record containers ###
     activeOT = [[] for _ in range(sizeMax)]
     fireOT   = [[] for _ in range(sizeMax)]
@@ -430,12 +491,15 @@ def update_org_for( nval, jCon, thresh, external,
     combMaxSize     = combMinSize + sizeM
     combRange       = [np.arange(combMinSize[i],combMaxSize[i]) for i in range(2)]
     combSequence    = []
+
     for inhibite in range(2):
         if randomProcess: 
             combSequence.append(np.random.randint(
                     combMinSize[inhibite],combMaxSize[inhibite], sizeM[inhibite]))
         else:
             combSequence.append( np.random.permutation(combRange[inhibite]))
+    labels = np.random.binomial(1,.5,maxTime)
+    external = createExt(info["sizeM"],info["extM"], info["K"],meanExt_M[labels[0]])
 
     while comb_Big_Time[0] < maxTime:
         # inhibite = 0 with likelihood of choosing excite
@@ -453,7 +517,7 @@ def update_org_for( nval, jCon, thresh, external,
         ### if result is of type list it needs to be recorded ...
         if isinstance(result, list):
             indiNeuronsDetailed[iterator].append(result)
-            # ... and converted back to a float value
+        ### ... and converted back to a float value
             result = result[1] - thresh[iterator]
         ### Record Activation
         if result >= 0:
@@ -467,6 +531,9 @@ def update_org_for( nval, jCon, thresh, external,
         if comb_Small_Time[inhibite] >= sizeM[inhibite]:
             comb_Big_Time[inhibite] +=1
             comb_Small_Time[inhibite] = 0
+            if (not (labels[comb_Big_Time[0]] == labels[comb_Big_Time[0]-1])  
+                and inhibite == 0 and comb_Big_Time[0] < maxTime)   :
+                external = createExt(info["sizeM"],info["extM"], info["K"],meanExt_M[labels[comb_Big_Time[0]]])
             if randomProcess: 
                 combSequence[inhibite]  = np.random.randint(
                     combMinSize[inhibite],combMaxSize[inhibite], sizeM[inhibite])
@@ -475,8 +542,7 @@ def update_org_for( nval, jCon, thresh, external,
             if comb_Big_Time[0] % 10 == 0 and not inhibite:
                 print(f"{(comb_Big_Time[0]/maxTime):.0%}", end=", ", flush=True)
     print("")
-    return  activeOT, fireOT
-
+    return  activeOT, fireOT, labels
 ###############################################################################
 ########################### Setup Functions ###################################
 ###############################################################################
@@ -495,7 +561,7 @@ def prepare(info, toDo):
 
     return jCon, thresh, external
 
-def convert(toDo):
+def rephrase(toDo):
     if toDo["doUpdating"] == "stochastic":
         doDet           = 0
         randomProcess   = 1
@@ -506,66 +572,30 @@ def convert(toDo):
         doDet           = 1
         randomProcess   = 0
     return doDet, randomProcess
-def run_length(prob_change_hl,length):
-    switches = np.random.binomial(1,prob_change_hl,length)
-    count = 0
-    intervals=[]
-    is_high = [bool(np.random.binomial(1,0.5))]
-    for i in range(len(switches)):
-        count += 1
-        if switches[i]:
-            intervals.append(count)
-            count=0
-            is_high.append(not is_high[-1])
-    is_high = np.array(is_high)*1
-    is_it_really_high = []
-    for i, val in enumerate(intervals):
-        for _ in range(val):
-            is_it_really_high.append(is_high)
 
-    return intervals, is_high
-    
-
-def convert_output(xOT,timer):
-    intOT = [np.trunc(row) for row in xOT]
-    output = []
-    for row in intOT:
-        output.append([])
-        for i in range(timer):
-            output[-1].append(int(i in row))
-    return output
-
-    # for i,t in enumerate(intervals):
-    #     info["timer"] = t
-    #     external = createExt(info["sizeM"],info["extM"], info["K"],meanExt_M[is_high[i]])
-def run_wonder( jCon, thresh, external, info, toDo, prob_change_hl, length, meanExt_M):
+def run_wonder( jCon, thresh, external, info, toDo):
     """
     executes the differen sequences
     """ 
     print("run")
     timestart = time.time()
     valueFolder = describe( toDo, info, 0 )
-    doDet, randomProcess = convert(toDo)
+    # doDet, randomProcess = rephrase(toDo)
 
-    intervals, is_high = run_length(prob_change_hl,length)
+    info["prob_change_hl"] = 0.1
+    info["meanExt_M"] = [.1, .3]
 
     ### The function ###
     nval = createNval(info["sizeM"], info["meanStartActi"])  
     nval0 = nval.copy()
     indiNeuronsDetailed = [[] for i in range(info['recNum'])] 
-    if toDo["doDet"]:
-        if toDo["doDet"] == doDet:print (True) 
-        activeOT, fireOT = update_org_det( nval, jCon, thresh, external,
-                                indiNeuronsDetailed, info)
-    else:
-        if toDo["doDet"] == doDet:print (True) 
-        activeOT, fireOT = update_org( nval, jCon, thresh, external,
-                                indiNeuronsDetailed, toDo["doRand"], info)
-
+    activeOT, fireOT, labels = update_org_WIP( 
+        nval, jCon, thresh, external, indiNeuronsDetailed, toDo["doRand"], info)
     ### time check ###
     timeend = time.time()
     print("runtime of routine")
     utils.timeOut(timeend - timestart)
+
 
     saveResults(valueFolder, indiNeuronsDetailed, 
                 activeOT, fireOT, info, toDo)
@@ -573,9 +603,34 @@ def run_wonder( jCon, thresh, external, info, toDo, prob_change_hl, length, mean
     # )= recoverResults(valueFolder)
 
     return (indiNeuronsDetailed,   
-            activeOT, fireOT, nval0)
+            activeOT, fireOT, labels)
 
+def abstand(x,y,max_):
+    xx = []
+    yy = []
+    for i in range(max_-1):
+        xx.append(x[i:-max_+1+i])
+        yy.append(y[:-max_+1])
+    xx.append(x[max_-1:])
+    yy.append(y[:-max_+1])
+    return xx, yy
 
+def comp(label, estimate):
+    accu = np.zeros((4),  np.int64)
+    accu2 = np.zeros((4),  np.int64)
+    t = np.zeros((2,2))
+    for i in range(len(label)):
+        pos = label[i] + estimate[i]*2
+        accu2[3-pos] += 1
+        accu[0] += label[i] and estimate[i]
+        accu[1] += (not label[i]) and estimate[i]
+        accu[2] += label[i] and not estimate[i]
+        accu[3] += not label[i] and not estimate[i]
+        t[label[i]][estimate[i]] += 1
+
+    accu_str = ( "hit \t", "false_alarm", "miss \t", "naught \t",)
+    for i in range(len(accu)):
+        print(accu_str[i] + ":\t" + str(accu[i]))
 def run_box( jCon, thresh, external, info, toDo ):
     """
     executes the differen sequences
@@ -584,7 +639,7 @@ def run_box( jCon, thresh, external, info, toDo ):
     timestart = time.time()
     valueFolder = describe( toDo, info, 0 )
 
-    doDet, randomProcess = convert(toDo)
+    doDet, randomProcess = rephrase(toDo)
 
     ### The function ###
     nval = createNval(info["sizeM"], info["meanStartActi"])  
@@ -638,23 +693,20 @@ def describe( toDo, info, figs ):
     ]
     shorttxt_strings = ["_rY","_rNN","_rN"]
 
-    update_rule = updating()
-    for i,rule in enumerate(update_rule):
-        if toDo["doUpdating"] == rule:
-            captiontxt  += captiontxt_strings[i]
-            shorttxt    += shorttxt_strings[i]
-
-
-
-    if toDo["doUpdating"] == "stochastic":
-        captiontxt += f",\n stochastic Updates"
-        shorttxt += "_rY"
-    elif toDo["doUpdating"] == "strict":
-        captiontxt += ",\n strictly deterministic Updates"
-        shorttxt += "_rNN"
-    else:
-        captiontxt += ",\n deterministic Updates"
-        shorttxt += "_rN"
+    # update_rule = updating()
+    # for i,rule in enumerate(update_rule):
+    #     if toDo["doUpdating"] == rule:
+    #         captiontxt  += captiontxt_strings[i]
+    #         shorttxt    += shorttxt_strings[i]
+    # if toDo["doUpdating"] == "stochastic":
+    #     captiontxt += f",\n stochastic Updates"
+    #     shorttxt += "_rY"
+    # elif toDo["doUpdating"] == "strict":
+    #     captiontxt += ",\n strictly deterministic Updates"
+    #     shorttxt += "_rNN"
+    # else:
+    #     captiontxt += ",\n deterministic Updates"
+    #     shorttxt += "_rN"
         
     ### still updating caption and title ###
     if   (toDo["doThresh"] == "constant"): 
@@ -765,7 +817,10 @@ def version_Main():
 def MachineMain():
     ### Specify Parameters 
     info = numParam()
-    (drw, toDo) = doParam()
+    toDo = doParam()[1]
+    train = 1
+    test  = 1
+    dist = 3
 
     ### Create constant inputs to function
     jCon = createjCon(info["sizeM"], info["jE"], info["jI"], info["K"])
@@ -773,13 +828,49 @@ def MachineMain():
     thresh = createThresh(info["sizeM"], info["threshM"], toDo["doThresh"])
     
     #valueFolder = describe(toDo, info,0) 
-    (indiNeuronsDetailed,   
-            activeOT, fireOT, nval0
-    ) = run_box( jCon, thresh, external, info, toDo,)
+    modelfolder =  utils.checkFolder("../ML_Model")
+    general_name = "logreg_"
+    modelname = modelfolder + general_name + info["timestr"] 
+    combname = modelfolder + "comb" + info["timestr"] 
+    # modelname = modelfolder + general_name + "200105_1829"
+    if train:
+        (indiNeuronsDetailed,   
+                activeOT_train, fireOT, labels_train
+        ) = run_wonder( jCon, thresh, external, info, toDo,)
 
-    plot_machine(
-        activeOT, fireOT, indiNeuronsDetailed,
-        info, drw, toDo)
+        ### Learning Part
+        input_train= transform2binary(activeOT_train, info["timer"])
+        model_A = [LogisticRegression(solver = "lbfgs",) for _ in range(dist)]
+        print(np.shape(input_train))
+        print(np.shape(labels_train))
+        xtrain_A, ytrain_A = abstand(input_train,labels_train,dist)
+
+        for i in range(dist):
+            model_A[i].fit(xtrain_A[i], ytrain_A[i])
+        modelname = modelfolder + general_name + info["timestr"] 
+        joblib.dump(model_A,modelname)
+        colsum = [sum(col) for col in input_train]
+        comb = np.array([colsum,labels_train])
+        # print(comb)
+        joblib.dump(comb,modelname)
+
+        high = np.mean([colsum[i] for i in range(len(colsum))if labels_train[i] ])
+        print(high)
+        low = np.mean([colsum[i] for i in range(len(colsum))if not labels_train[i] ])
+        print(low)
+        
+    if test:
+        (indiNeuronsDetailed,   
+            activeOT_test, fireOT2, labels_test  
+        ) = run_wonder( jCon, thresh, external, info, toDo,)
+        if not train:
+            model_A = joblib.load(modelname)
+        input_test= transform2binary(activeOT_test, info["timer"])
+        xtest_A, ytest_A = abstand(input_test,labels_test,dist)
+        estimate_A = [model_A[i].predict(xtest_A[i]) for i in range(dist)]
+        [comp(ytest_A[i],estimate_A[i]) for i in range(dist)]
+    useless(indiNeuronsDetailed,fireOT, fireOT2)
+
 
 def VanillaMain():
     ### Specify Parameters 
@@ -799,6 +890,7 @@ def VanillaMain():
     plot_machine(
         activeOT, fireOT, indiNeuronsDetailed,
         info, drw, toDo)
+    useless(nval0)
 
 ###############################################################################
 ############################# Customize Here ##################################
@@ -840,16 +932,16 @@ def doParam():
     specifies most behaviors of 
     """
     #Bools for if should be peotted or not
-    pIndiExt    = 0
-    nDistri     = 0
-    newMeanOT   = 0
-    nInter      = 0
+    pIndiExt    = 1
+    nDistri     = 1
+    newMeanOT   = 1
+    nInter      = 1
     nInter_log  = 1
-    dots2       = 0
+    dots2       = 1
     drw = locals()
     
     doThresh    = "constant" #"constant", "gaussian", "bounded"
-    doUpdating  = "deterministic"
+    doUpdating  = "stochastic"
     doRand      = 0     #Only one Sequence per Routine
     doDet       = 0
 
@@ -861,20 +953,21 @@ def doParam():
     plots.showPlots_GLOBAL  = 0
     return drw, toDo
 
+def useless(*args):
+    pass
+    
+def check_plt():
+    plt.figure()
+
 if __name__ == "__main__":
+    check_plt()
     #changeExt_Main()   
     #changeThresh_Main()
-    #version_Main()
+    # version_Main()
     VanillaMain()
+    # MachineMain()
+    # testXX()
     pass
-def test():
-    class my_pdf(st.rv_continuous):
-        def _pdf(self,x, tau):
-            return x*math.exp(-x/tau)/(tau**2)  # Normalized over its range, in this case [0,1]
-
-    dist_R = my_pdf(a=0, name='my_pdf')
-    x = dist_R(tau = 1)
-    print(x)
 
 ###############################################################################
 ################################## To Dos #####################################
@@ -884,5 +977,9 @@ meanExt change what happens, linear read out durch logisitic regression oder pse
 Trainieren auf entscheidung jetzt, in 1, in 2...
 immer 2 Neuronen pro Zeit
 input 1 Zeitschritt 1 oder 0 übergeben
+Plots: IndiNeuronPlot: untere Linie Peaks nicth korrekt
+Plots: Distri Fit
 
+Input Verhältnis Excitatory zu Extern
+External INput bernoulli .5
 """
