@@ -1,15 +1,13 @@
 from pathlib import Path
-import math
 import numpy as np
 
-import matplotlib
 import matplotlib.pyplot as plt
 
 import scipy
 from scipy import special
 from scipy.stats import gaussian_kde
 import scipy.integrate as integrate
-import scipy.optimize  as optimize
+import scipy.optimize as optimize
 
 from collections import OrderedDict #grouped Labels
 import inspect
@@ -22,37 +20,42 @@ import utils
 ###############################################################################
 ############################### Global Variables ##############################
 ###############################################################################
-savefig_GLOBAL      = 1
-showPlots_GLOBAL    = 0
-figfolder_GLOBAL    = ""
-titletxt_GLOBAL     = ""
-captiontxt_GLOBAL   = ""
-
+savefig_GLOBAL    = 1
+showPlots_GLOBAL  = 0
+figfolder_GLOBAL  = ""
+titletxt_GLOBAL   = ""
+captiontxt_GLOBAL = ""
+print_GLOBAL = 1
 ###############################################################################
 ############################## Utility Functions ##############################
 ###############################################################################
 
-def finishplot(title_of_plot , xlabel_of_plot, ylabel_of_plot, name_of_plot,fig,ignoreY=0):
+
+def finishplot(title_of_plot, xlabel_of_plot, ylabel_of_plot,
+               name_of_plot, fig, ignoreY=0):
     plt.title(title_of_plot)
-    plt.xlabel(xlabel_of_plot )
-    if not ignoreY: plt.ylabel(ylabel_of_plot)
+    plt.xlabel(xlabel_of_plot)
+    if not ignoreY: 
+        plt.ylabel(ylabel_of_plot)
     folder = utils.checkFolder(figfolder_GLOBAL)
-    #fullname = utils.testTheName(folder +name_of_plot+titletxt_GLOBAL, "png")
-    fullname = utils.testTheName(folder +name_of_plot, "png")
+    # fullname = utils.testTheName(folder +name_of_plot+titletxt_GLOBAL, "png")
+    fullname = utils.testTheName(folder + name_of_plot, "png")
     if savefig_GLOBAL:
         plt.savefig(fullname)
-        utils.plotMessage(fullname)
+        if print_GLOBAL:
+            utils.plotMessage(fullname)
     if showPlots_GLOBAL:
         plt.show()
     plt.close(fig)
 
-def regr(func, x,y):
+
+def regr(func, x, y):
     #extracts default values from function
     signature = inspect.signature(func)
     defaults =  [ v.default for k, v in signature.parameters.items()
                 if v.default is not inspect.Parameter.empty]
     #actual fit
-    popt, pcov = scipy.optimize.curve_fit(func, x, y, p0=defaults)
+    popt, pcov = scipy.optimize.curve_fit(func, x, y)#, p0=defaults)
     #varr -> st_dev
     perr = np.sqrt(np.diag(pcov))
     #label
@@ -66,6 +69,7 @@ def regr(func, x,y):
 ############################## Plotting Functions #############################
 ###############################################################################
 
+
 def indiExtended(indiNeuronsDetailed, threshM, recNum):
     captiontxt = captiontxt_GLOBAL
     showRange = recNum
@@ -76,9 +80,9 @@ def indiExtended(indiNeuronsDetailed, threshM, recNum):
     ax1         = axarr[0]
     ax2         = axarr[1]
     """
-    fig = plt.figure(constrained_layout = False, )#figsize = (10,10))
+    fig = plt.figure(constrained_layout=False, )#figsize = (10,10))
     h_ratio = 10-showRange/2 if 10-showRange/2>2 else 2
-    gs  = fig.add_gridspec(ncols=1,nrows=2,height_ratios=[h_ratio,1])
+    gs  = fig.add_gridspec(ncols=1, nrows=2, height_ratios=[h_ratio,1])
     ax1 = fig.add_subplot(gs[0,:])
     ax2 = fig.add_subplot(gs[1,:], sharex =ax1)
     plt.setp(ax1.get_xticklabels(), visible=False)
@@ -90,13 +94,14 @@ def indiExtended(indiNeuronsDetailed, threshM, recNum):
     if minMaxDiff:
         print("WARNING: Asymmetric Growth of individual neurons recorded")
         captiontxt += (f"\n  unequal size of neurons, difference between max" +
-                f" and min = {minMaxDiff}")
+                       f" and min = {minMaxDiff}")
     lengthOfPlot = max(lengthOfLists)
+    col = ['blue', 'green', 'red', 'purple', 'grey']
+    labelNames = ["positive", "total sum", "negative", "positive inside", "positive external"]
+    lstyle = ['-', '-', '-', ':', '--']
     for i in range(level, showRange + level):
         rec = np.transpose(indiNeuronsDetailed[i])
         xs = range(0,len(rec[1]))
-        col=['blue', 'green', 'red']
-        labelNames = ["positive", "total sum", "negative"]
         lines=[[] for x in range(showRange)]
         spike = [1 if rec[1][j]
          > threshM[exORin] 
@@ -105,26 +110,26 @@ def indiExtended(indiNeuronsDetailed, threshM, recNum):
         dataspike.append(spike)
         for j in range(len(rec)):
             lines[i].append(ax1.plot(xs,rec[j], color = col[j],
-                label= labelNames[j], linewidth = .8))
+                label= labelNames[j], linestyle=lstyle[j], linewidth = .8))
     ax2.imshow(dataspike, aspect='auto', cmap='Greys', interpolation='nearest')
 
     xs = range(lengthOfPlot)
     consta = [threshM[exORin] for x in range(lengthOfPlot)]
-    ax1.plot(xs,consta, color = "black", linewidth = 2.0)
+    ax1.plot(xs, consta, color="black", linestyle="-", linewidth=1.4)
     fig.suptitle('Individual Neuron Firing Pattern', fontsize= 20)
     labelX = "Time"
     # plt.xlabel(labelX + '\n\n' + captiontxt)
-    plt.xlabel(labelX + '\n\n' + captiontxt)
-    ax1.set(ylabel = 'Current')
+    plt.xlabel(labelX + '\n\n' + captiontxt_GLOBAL)
+    ax1.set(ylabel='Current')
     handles, labels = ax1.get_legend_handles_labels()
     by_label = OrderedDict(zip(labels, handles))
     ax1.legend(by_label.values(), by_label.keys())
-    ax2.set(ylabel = 'Spike')
+    ax2.set(ylabel='Spike')
 
     folder = utils.checkFolder(figfolder_GLOBAL)
     name = "IndiExt"
     # fullname = utils.testTheName(folder +name+titletxt_GLOBAL , "png")
-    fullname = utils.testTheName(folder +name , "png")
+    fullname = utils.testTheName(folder + name , "png")
     if savefig_GLOBAL:
         plt.savefig(fullname)
         utils.plotMessage(fullname)
@@ -133,16 +138,15 @@ def indiExtended(indiNeuronsDetailed, threshM, recNum):
     plt.close(fig)
 
 
-
-def newDistri( inputOT, timer ):
+def newDistri(inputOT, timer):
     actiRowLen = np.array([len(row) for row in inputOT])
     norm       = actiRowLen/np.mean(actiRowLen) 
 
     uniq = len(np.unique(norm))
-    binsize = 10 if uniq <10 else uniq if uniq<timer else timer
+    binsize = 10 if uniq <10 else uniq if uniq <timer else timer
 
-    fig = plt.figure(tight_layout = True)
-    plt.hist(norm, bins = binsize, weights = np.ones(len(norm))/len(norm))
+    fig = plt.figure(tight_layout=True)
+    plt.hist(norm, bins=binsize, weights=np.ones(len(norm))/len(norm))
 
     disclaimer = "actual amount of dead nodes:" +str(len([x for x in inputOT if not x])/len(inputOT))
     title_of_plot   = 'Firing Rate Distribution' 
@@ -188,6 +192,8 @@ def fit_func(t,a,b):
     return a*np.exp(b*t)
 
 def newInterspike(inputOT,timer,display_Log = 1):
+    def func(x, a, b, c):
+        return a * np.exp(-b * x) + c
     def exponential(x,a=1,k=1):
         return a*np.exp(x*k)
     # matplotlib.rcParams['text.usetex'] = True
@@ -203,7 +209,10 @@ def newInterspike(inputOT,timer,display_Log = 1):
     if display_Log:
         plt.yscale('log', nonposy='clip')
     bincenters = 0.5*(binz[1:]+binz[:-1])
-    regr(exponential,bincenters,n)
+    try:
+        regr(func,bincenters,n)
+    except:
+        print("Fit Failed")
     # popt, pcov = scipy.optimize.curve_fit(exponential, bincenters, n, p0=[1,-0.5])
     # perr = np.sqrt(np.diag(pcov))
     # fit_label =  "Curve Fit: $"+(str(round(popt[0],3))+r'\pm'+str(round(perr[0],3)) 

@@ -1,8 +1,14 @@
 import sys
 from PyQt5.QtWidgets import *
+                            # (QSlider,QHBoxLayout, QVBoxLayout,
+                            #  QLabel, QPushButton, QMainWindow, QDialog, 
+                            #  QApplication, QSpinBox, QDoubleSpinBox, 
+                            #  QComboBox, QCheckBox, QWidget,
+                            # )
 from PyQt5.QtCore import *
+                        # (Qt, pyqtSlot )
 from PyQt5.QtGui import *
-
+                        # (QPixmap, QFont, QColor, )
 import time
 import numpy as np
 import math
@@ -10,6 +16,7 @@ from pathlib import Path
 
 import neuron as nn
 import plots
+
 
 class DoubleSlider(QSlider):
 
@@ -224,8 +231,8 @@ class InputLayout(QVBoxLayout):
 
     range_dict = {
         #min, max, default
-        "size":             [10,100000, 1000],
-        "K":                [10, 10000, 100],
+        "size":             [100,20000, 1000],
+        "K":                [10, 10000, 1000],
         "timer":            [1, 1000, 100],
         "jE":               [0, 5, 2],
         "jI":               [0, 5, 1.8],
@@ -239,9 +246,9 @@ class InputLayout(QVBoxLayout):
     }
     drop_dict = {
         "doThresh":     ["bounded", "constant", "gaussian"],
-        "doUpdating":   ["stochastic","strict","deterministic"]
+        "doUpdating":   ["stochastic","deterministic"]
     }
-    check_dict = {
+    drw_dict = {
     "pIndiExt":         1,
     "nDistri":          1,
     "newMeanOT":        1,
@@ -249,6 +256,8 @@ class InputLayout(QVBoxLayout):
     "nInter_log":       1,
     "dots2":            1,
     }
+    load_message= pyqtSignal()
+    do_calc   = pyqtSignal(dict,dict,dict)
     def __init__(self, *args, **kwargs):
         super(QVBoxLayout, self).__init__(*args, **kwargs)
 
@@ -261,12 +270,13 @@ class InputLayout(QVBoxLayout):
             drop = Dropdown(key,txt)
             drop.setObjectName("inp_%s" %key)
             self.addLayout(drop)
-        for key,default in self.check_dict.items():
+        for key,default in self.drw_dict.items():
             check = Haken(key,default)
             check.setObjectName("inp_%s" %key)
             self.addLayout(check)
 
         exec_button = QPushButton("Run")
+        exec_button.clicked.connect(self.emit_load)
         exec_button.clicked.connect(self.run)
         self.addWidget(exec_button, alignment = Qt.AlignRight)
 
@@ -309,10 +319,31 @@ class InputLayout(QVBoxLayout):
         info['extM'] = np.array([info.pop('extE'),info.pop('extI')])
         info['threshM'] = np.array([info.pop('threshE'),info.pop('threshI')])
         info['sizeM'] = np.array([info['size'],info.pop('size')])
+        info["j_EE"], info["j_EI"] = 1,1
         return info
 
+    @pyqtSlot()
+    def emit_load(self):
+        self.load_message.emit()    
+    # def run(self):
+    #     self.emit_load()
+    #     print("dummy")
+    #     time.sleep(2)
+    #     folder = "../figs/testreihe_200110_1644_S3_K2_m1_t10_rY/"
+    #     drw = {
+    #     "pIndiExt":         1,
+    #     "nDistri":          1,
+    #     "newMeanOT":        1,
+    #     "nInter":           1,
+    #     "nInter_log":       1,
+    #     "dots2":            1,
+    #     }
+
+    #     self.do_calc.emit(folder,drw)    
+
     def run(self):
-        
+        # self.emit_load()
+
         items = (self.itemAt(i) for i in range(self.count()) 
                 if isinstance(self.itemAt(i),ValueUnit)
                 or isinstance(self.itemAt(i),MiniUnit))
@@ -328,70 +359,176 @@ class InputLayout(QVBoxLayout):
         drop_items = (self.itemAt(i) for i in range(self.count()) 
                 if isinstance(self.itemAt(i),Dropdown)) 
         toDo = self.make_toDo(drop_items)
+        self.do_calc.emit(info,drw,toDo)
+        # self.do_calc.emit(info['figfolder'],drw)    
 
-        plots.savefig_GLOBAL    = 1
-        plots.showPlots_GLOBAL  = 0
-        ### Create constant inputs to function
-        jCon = nn.createjCon(info["sizeM"], info["jE"], info["jI"], info["K"])
-        external = nn.createExt(info["sizeM"],info["extM"], info["K"], info["meanExt"])     
-        thresh = nn.createThresh(info["sizeM"], info["threshM"], toDo["doThresh"])
-        
-        #valueFolder = describe(toDo, info,0) 
-        (indiNeuronsDetailed,   
-                activeOT, fireOT, nval0
-        ) = nn.run_box( jCon, thresh, external, info, toDo,)
+g_dict = {
+    "pIndiExt":         "Individual",
+    "nDistri":          "Distribution",
+    "newMeanOT":        "Mean Over Time",
+    "nInter":           "Intespike Rate",
+    "nInter_log":       "Intespike Rate (log scale)",
+    "dots2":            "Shows IM",
+}
+graphic_loc = {
+    "pIndiExt":         "IndiExt.png",
+    "nDistri":          "Distri.png",
+    "newMeanOT":        "MeanOT.png",
+    "nInter":           "interspike_no_1.png",
+    "nInter_log":       "interspike.png",
+    "dots2":            "dots2.png",
+}
+class Displayer(QVBoxLayout):
+    def __init__(self, *args, **kwargs):
+        super(QVBoxLayout, self).__init__(*args, **kwargs)
+        loc ="Start.jpg"
+        self.graphic = QLabel("Hallo")
+        img = QPixmap(loc)
+        scaled_img = img.scaled(self.graphic.size(), Qt.KeepAspectRatio)
+        self.graphic.setPixmap(scaled_img)
 
-        nn.plot_machine(
-            activeOT, fireOT, indiNeuronsDetailed,
-            info, drw, toDo)
+        self.select_img  = QComboBox()
+        self.select_img.addItem("Run the program please")
+        # default = strings[0]
+        # self.val = default
+        self.select_img.activated[str].connect(self.change_img)
+        self.select_img.setEnabled(False)
 
+        self.button = QPushButton("click")
+        self.button.clicked.connect(self.update_test)
+        self.addWidget(self.graphic)
+        self.addWidget(self.select_img)
+        self.addWidget(self.button)
+
+
+    def update_test(self,*args):
+        print(args)
+        folder = "../figs/testreihe_200110_1644_S3_K2_m1_t10_rY/"
+        drw = {
+        "pIndiExt":         1,
+        "nDistri":          1,
+        "newMeanOT":        1,
+        "nInter":           1,
+        "nInter_log":       1,
+        "dots2":            1,
+        }
+        # self.test(self, folder, drw)
+        self.update(False, drw, folder)
+
+    @pyqtSlot()
+    def loading(self,*args):
+        print(args)
+        # self.select_img.setEnabled(False)
+        loc = "foto.jpg"
+        print("issue maybe because of QAutoConnection, QueuedConnection")
+        img = QPixmap(loc)
+        scaled_img = img.scaled(self.graphic.size(), Qt.KeepAspectRatio)
+        self.graphic.setPixmap(scaled_img)
+
+
+
+    @pyqtSlot(dict,dict,dict)
+    def update(self, info,drw,toDo,*args):
+        loc = "wait.jpg"
+        img = QPixmap(loc)
+        scaled_img = img.scaled(self.graphic.size(), Qt.KeepAspectRatio)
+        self.graphic.setPixmap(scaled_img)
+        if info: 
+            print("by hand: switch")
+            toDo["switch"]      = 0
+            info['meanExt_M']   = [info["meanExt"], "error"]
+
+            ### Main ###
+
+            plots.savefig_GLOBAL    = 1
+            plots.showPlots_GLOBAL  = 0
+
+            ### Create constant inputs to function
+            jCon = nn.createjCon(info)
+            external = nn.createExt(info["sizeM"],info["extM"], info["K"], info["meanExt"])     
+            thresh = nn.createThresh(info["sizeM"], info["threshM"], toDo["doThresh"])
+            
+            #valueFolder = describe(toDo, info,0) 
+            (indiNeuronsDetailed,   
+                    activeOT, fireOT, nval0
+            ) = nn.run_box( jCon, thresh, external, info, toDo,)
+
+            nn.plot_machine(
+                activeOT, fireOT, indiNeuronsDetailed,
+                info, drw, toDo)
+        ### End Main ### 
+        ### Choose Items for dropdown ###
+        self.select_img.clear()
+        available = []
+        for key,value in drw.items():
+            if value:
+                available.append(key)
+        ### Insert Items to Dropdown
+        self.select_img.setEnabled(True)
+        self.folder = info['figfolder']
+        for name in available:
+            string = g_dict[name]
+            self.select_img.addItem(string)
+        ### Display First Image
+        # self.change_img(available[0])
+
+    def change_img(self,text,*args):
+        for key,val in g_dict.items():
+            if val == text:
+                code_name = key
+        name = graphic_loc[code_name] 
+        loc = plots.figfolder_GLOBAL + '/' + name
+        print(loc)
+        img = QPixmap(loc)
+        scaled_img = img.scaled(self.graphic.size(), Qt.KeepAspectRatio)
+        self.graphic.setPixmap(scaled_img)
+        # """
+        # Ausslagern in eigene Klasse von img_layout
+        # Dropdown
+        # """
+
+class waitalog(QDialog):
+    def __init__(self, *args, **kwargs):
+        super(QDialog, self).__init__(*args, **kwargs)
+        self.label = QLabel("Please Wait")
+        time.sleep(1)
+        self.show()
+        self.button = QPushButton("close")
+        self.button.clicked.connect(self.close)
+        self.addWidget(self.label)
+        self.addWidget(self.button)
 
 
 
 class MainWindow(QMainWindow):
 
     def __init__(self, *args, **kwargs):
-        super(MainWindow, self).__init__(*args, **kwargs)
+        super(QMainWindow, self).__init__(*args, **kwargs)
         self.setWindowTitle("Balanced Network Simulation")
-        self.label = QLabel("THIS")
         self.inputLayout = InputLayout()
-        self.label2 = QLabel("THIS2")
         
         self.principal = QHBoxLayout()
         self.principal.addLayout(self.inputLayout )
-        loc ="../figs/testreihe_200110_1644_S3_K2_m1_t10_rY/IndiExt.png"
-        self.label = QLabel("Hallo")
-        self.label.setText("Heasf;lkasdf")
-        img = QPixmap('image.jpg')
-        scaled_img = img.scaled(self.label.size(), Qt.KeepAspectRatio)
-        self.label.setPixmap(scaled_img)
-        self.principal.addWidget(self.label)
+
+        self.img_layout = Displayer()
+        self.principal.addLayout(self.img_layout)
+        # self.principal.addWidget(self.label)
         widget = QWidget()
         widget.setLayout(self.principal)
+        self.inputLayout.load_message.connect(self.img_layout.loading,Qt.DirectConnection)
+
+        self.inputLayout.do_calc.connect(self.img_layout.update)
         self.setCentralWidget(widget)
 
-class Principal(QHBoxLayout):
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    # window = waitalog()
+    window.show()
+    app.exec_()
 
-    def __init__(self, *args, **kwargs):
-        super(QVBoxLayout, self).__init__(*args, **kwargs)
-        self.principal = QHBoxLayout
-        self.principal.addLayout(self.inputLayout )
-        loc ="../figs/testreihe_200110_1644_S3_K2_m1_t10_rY/IndiExt.png"
-
-
-class Color(QWidget):
-    def __init__(self,color, *args, **kwargs):
-        super(Color, self).__init__(*args, **kwargs) 
-        self.setAutoFillBackground(True)
-        palette = self.palette()
-        palette.setColor(QPalette.Window, QColor(color))
-        self.setPalette(palette)
-app = QApplication(sys.argv)
-window = MainWindow()
-window.show()
-app.exec_()
-"""
-Bild auf rechte Seite
-Freeze while processing
-Namen kurz mit Erklärung
-"""
+# """
+# Bild auf rechte Seite
+# Freeze while processing
+# Refresh API   
+# """
