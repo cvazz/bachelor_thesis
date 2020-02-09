@@ -127,8 +127,6 @@ def plot4(jM,extM, threshM ,K):
 
 
 def plot3(jM, extM,threshM, K):
-    step = 0.1
-    m0 = np.arange(0.0+ step, 0.4, step)
     m0 = np.linspace(0.0001, 0.3)
     mM = [meanMakerInfty(jM,extM,m) for m in m0]
     alphaM = [alphaMaker(jM,meanM) for meanM in mM]
@@ -218,8 +216,8 @@ def task6():
     do6(K,mean0,tau, sizeE, sizeI, extE, extI, jE, jI, threshE, threshI)
 
 def main():
-    #task3()
-    task6()
+    task3()
+    # task6()
     #testRoutine()
 
 

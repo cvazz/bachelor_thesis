@@ -4,16 +4,10 @@
 
 ### Numbers ###
 import numpy as np
-import math
-import random
-import scipy.stats as st
-
 import matplotlib.pyplot as plt
 
 ### File Interaction and Manipulation ###
 from pathlib import Path
-import pickle
-import joblib  # dump,load
 
 ### Duh ###
 import time
@@ -29,13 +23,27 @@ import neuron as nn
 import mathsim as msim
 import utils
 import plots
-import old
 
 print_GLOBAL = 1
 
 ###############################################################################
-########################### Setup Functions ###################################
+########################### Utility Functions ###################################
 ###############################################################################
+# 
+
+def useless(*args):
+    pass
+    
+
+def check_plt():
+    fig = plt.figure()
+    plt.close(fig)
+
+
+def stamp(timestamp, name):
+    timestamp.append([name, time.time(), time.time() - timestamp[-1][1]])
+    print (timestamp[-1][0], end= ": ")
+    utils.timeOut(timestamp[-1][2])
 
 
 def analyzeMeanOT(inputOT, sizeM):
@@ -48,7 +56,7 @@ def analyzeMeanOT(inputOT, sizeM):
     uniq = [np.unique(act, return_counts=1) for act in flat]
 
     # Convert count above into a value between 0 and 1
-    normalized = [uniq[i][1]/sizeM[i] for i in range(2)]
+    normalized = [uniq[i][1] / sizeM[i] for i in range(2)]
 
     return normalized
 
@@ -105,6 +113,34 @@ def comp(label, estimate):
     return accu
 
 
+def split_train_test(x, y, split_point):
+    """ Splits two arrays of size (N x rows x beliebig) in roughly half
+
+    :param x: [description]
+    :type x: [type]
+    :param y: [description]
+    :type y: [type]
+    :param split_point: [description]
+    :type split_point: [type]
+    :return: [description]
+    :rtype: [type]
+    """
+    split = int(len(x[0]) * split_point)
+    x_a, y_a, x_b, y_b = [], [], [], []
+    for x_spalte, y_spalte in zip(x,y):
+        x_a.append(x_spalte[:split])
+        x_b.append(x_spalte[split:])
+        y_a.append(y_spalte[:split])
+        y_b.append(y_spalte[split:])
+
+    return x_a, y_a, x_b, y_b
+
+
+###############################################################################
+########################### Setup Functions ###################################
+###############################################################################
+
+
 def run_box(jCon, thresh, external, info, toDo):
     """
     executes the differen sequences
@@ -131,9 +167,7 @@ def run_box(jCon, thresh, external, info, toDo):
                        activeOT, fireOT, info, toDo)
     # (indiNeuronsDetailed, activeOT, fireOT, nval_OT, info, toDo
     # )= nn.recoverResults(valueFolder)
-
-    return (indiNeuronsDetailed,   
-            activeOT, fireOT, labels)
+    return (indiNeuronsDetailed, activeOT, fireOT, labels)
 
 
 def describe(toDo, info, figs):
@@ -181,14 +215,16 @@ def plot_machine(
         activeOT, fireOT, indiNeuronsDetailed,
         info, drw, toDo
         ):
-    threshM, timer, sizeM, recNum = info["threshM"], info["timer"], info["sizeM"], info["recNum"]
+    threshM, timer, sizeM, display_count = info["threshM"], info["timer"], info["sizeM"], info["display_count"]
     describe(toDo, info, 1)
     ### Analysis ###
     mean_actiOT = analyzeMeanOT(activeOT, sizeM)
 
     ### Plotting Routine ###
     if drw["pIndiExt"]:
-        plots.indiExtended(indiNeuronsDetailed, threshM, recNum)
+        plots.indiExtended(indiNeuronsDetailed, threshM, display_count)
+    if drw["pIndiExt"]:
+        plots.indiExtended(indiNeuronsDetailed, threshM, display_count, 1)
     if drw["nDistri"]:
         plots.newDistri(activeOT, timer)
     if drw["newMeanOT"]:
@@ -200,12 +236,43 @@ def plot_machine(
     if drw["nInter"]:
         plots.newInterspike(fireOT, timer, 0)
 
+
+def predic_readout(activeOT, labels_train, info):
+    ### Learning Part ###
+    timestart = time.time()
+    dist  = info["dist"]
+    input_train = transform2binary(activeOT, info["timer"])
+    model_A = [LogisticRegression(solver="lbfgs", max_iter=160) for _ in range(dist)]
+    x_A, y_A = abstand(input_train, labels_train, dist)
+    xtrain_A, ytrain_A, xtest_A, ytest_A = split_train_test(x_A, y_A, 0.5)
+    for i in range(dist):
+        model_A[i].fit(xtrain_A[i], ytrain_A[i])
+
+    timeend = time.time()
+    if print_GLOBAL:
+        utils.timeOut(timeend - timestart)
+
+    ### Test & Evaluate ###
+    timestart = time.time()
+
+    estimate_A = [model_A[i].predict(xtest_A[i]) for i in range(dist)]
+    readout_ = [comp(ytest_A[i],estimate_A[i]) for i in range(dist)]
+
+    timeend = time.time()
+    if print_GLOBAL:
+        utils.timeOut(timeend - timestart)
+    ### Convert Readout to single precision value ###
+    correctness = [(delay[0]+delay[3])/sum(delay) for delay in readout_]
+    return correctness
+
+
 ##############################################################################
 ################################## Main Area #################################
 ##############################################################################
 
 
 def changeExt_():
+    check_plt()
     info = numParam()
     toDo = doParam()[1]
     info["meanExt"] = 0.04
@@ -213,19 +280,25 @@ def changeExt_():
     thresh = nn.createThresh(info["sizeM"], info["threshM"], toDo["doThresh"])
     mE_List = [0.04, 0.1, 0.2, 0.3]
     meanList = []
+    meanList2 = []
     for i in range(len(mE_List)):
         external = nn.createExt(info, mE_List[i])     
         activeOT = run_box( jCon, thresh, external,  info, toDo)[1] #1:active, 2:fire
-        means = nn.analyzeMeanOT(activeOT, info["sizeM"])
+        means = analyzeMeanOT(activeOT, info["sizeM"])
         meanList.append([mE_List[i]])
+        meanList2.append([mE_List[i]])
         meanList[-1] += [np.mean(means[i][10:])for i in range(2)]
+        meanList2[-1] += [np.mean(means[i])for i in range(2)]
     meanList = np.transpose(meanList)
+    meanList2 = np.transpose(meanList2)
     print(meanList)
+    print(meanList2)
     plots.figfolder_GLOBAL = info["figfolder"]
     plots.mean_vs_ext(meanList)
 
 
 def changeThresh_():
+    check_plt()
     ### Specify Parameters
     info = numParam()
     (drw, toDo) = doParam()
@@ -247,105 +320,126 @@ def changeThresh_():
             info, drw, toDo)
 
 
-def split_train_test(x, y, split_point):
-    """ Splits two arrays of size (N x rows x beliebig) in roughly half
-
-    :param x: [description]
-    :type x: [type]
-    :param y: [description]
-    :type y: [type]
-    :param split_point: [description]
-    :type split_point: [type]
-    :return: [description]
-    :rtype: [type]
-    """
-    split = int(len(x[0]) * split_point)
-    x_a, y_a, x_b, y_b = [], [], [], []
-    for x_spalte, y_spalte in zip(x,y):
-        x_a.append(x_spalte[:split])
-        x_b.append(x_spalte[split:])
-        y_a.append(y_spalte[:split])
-        y_b.append(y_spalte[split:])
-
-    return x_a, y_a, x_b, y_b
-
-
-def Machine(jEE=1, extE=1):
+def Machine(jEE=1, extE=1, dist=3):
+    check_plt()
     ### Get Standard Parameters ###
     info = numParam()
     drw, toDo = doParam()
 
     ### Specify Parameters ###
-    dist = 3
     toDo["switch"] = 1
     info["j_EE"] = jEE
     info["extM"][0] = extE
+    info["dist"] = dist
+    info['recNum'] = 100#info['sizeM'][0]
 
     ### Create constant inputs to function ###
     jCon = nn.createjCon(info)
     external = nn.createExt(info)
     thresh = nn.createThresh(info["sizeM"], info["threshM"], toDo["doThresh"])
 
-    (indiNeuronsDetailed,   
-        activeOT_train, fireOT, labels_train
-    ) = run_box( jCon, thresh, external, info, toDo,)
-
-    ### Learning Part ###
-    timestart = time.time()
-
-    input_train = transform2binary(activeOT_train, info["timer"])
-    model_A = [LogisticRegression(solver="lbfgs", max_iter=160) for _ in range(dist)]
-    x_A, y_A = abstand(input_train, labels_train, dist)
-    xtrain_A, ytrain_A, xtest_A, ytest_A = split_train_test(x_A, y_A, 0.5)
-    for i in range(dist):
-        model_A[i].fit(xtrain_A[i], ytrain_A[i])
-
-    timeend = time.time()
-    if print_GLOBAL:
-        utils.timeOut(timeend - timestart)
-
-    ### Test & Evaluate ###
-    timestart = time.time()
-
-    estimate_A = [model_A[i].predict(xtest_A[i]) for i in range(dist)]
-    readout_ = [comp(ytest_A[i],estimate_A[i]) for i in range(dist)]
-
-    timeend = time.time()
-    if print_GLOBAL:
-        utils.timeOut(timeend - timestart)
-
-    ### Convert Readout to single precision value ###
-    correctness = [(delay[0]+delay[3])/sum(delay) for delay in readout_]
+    ### Run System ###
+    (indiNeuronsDetailed, activeOT, fireOT, labels_train
+    ) = run_box(jCon, thresh, external, info, toDo)
+    activeOT = np.array(activeOT)
+    ###
+    correctness = predic_readout(activeOT, labels_train, info)
+    overall_activity = activeOT.size/info['timer']/np.sum(info['sizeM'])
+    ext_contrib = np.sum(indiNeuronsDetailed[:][:][4])
+    int_contrib = np.sum(indiNeuronsDetailed[:][:][3])
+    ratio_ext_int = ext_contrib / int_contrib
     useless(indiNeuronsDetailed, fireOT)
-    return correctness
+    return correctness, overall_activity, ratio_ext_int
 
 
 def Vanilla():
+    check_plt()
+    timestamp = [["start", time.time(), 0]]
+
     ### Specify Parameters
     info = numParam()
+    # info['timer'] = 10 #info['sizeM'][0]
     (drw, toDo) = doParam()
     toDo["switch"] = 0
+    stamp(timestamp, "Params") 
+
     ### Create constant inputs to function
     jCon = nn.createjCon(info)
+    stamp(timestamp, "jCon") 
     external = nn.createExt(info)     
+    stamp(timestamp, "external") 
     thresh = nn.createThresh(info["sizeM"], info["threshM"], toDo["doThresh"])
-    #valueFolder = describe(toDo, info,0)
-    (indiNeuronsDetailed, activeOT, fireOT, label
-    ) = run_box( jCon, thresh, external, info, toDo,)
+    stamp(timestamp, "thresh") 
 
+    ### Updating Function
+    (indiNeuronsDetailed, activeOT, fireOT, label
+    ) = nn.run_update(jCon, thresh, external, info, toDo,)
+    stamp(timestamp, "update cycle") 
+
+    print(np.array(indiNeuronsDetailed).shape)
     plot_machine(
         activeOT, fireOT, indiNeuronsDetailed,
         info, drw, toDo)
-    print("shape of indi Neurons")
-    print(np.shape(indiNeuronsDetailed))
-    ext_contrib = np.sum(indiNeuronsDetailed[0][:][4])
-    int_contrib = np.sum(indiNeuronsDetailed[0][:][3])
+    stamp(timestamp, "all plots") 
+    ext_contrib = np.sum(indiNeuronsDetailed[:][:][4])
+    int_contrib = np.sum(indiNeuronsDetailed[:][:][3])
     print("Share of Internal vs external Contribution")
-    print(int_contrib/ext_contrib)
+    print(int_contrib / ext_contrib)
+    print(test_list(indiNeuronsDetailed))
     useless(label)
 
 
+def cust_save(name, predic, activity, ratio, string, info=None, toDo=None):
+    ### Setup File Names ###
+    folder = utils.checkFolder("data/" + name + time.strftime("%m%d"))
+    info_name = "info"
+    info_path = folder + info_name
+    info_path = utils.testTheName(info_path, "txt")
+
+    predic_name = "prediction"
+    pred_path = folder + predic_name
+    pred_path = utils.testTheName(pred_path, "npy")
+
+    act_name = "activity"
+    act_path = folder + act_name
+    act_path = utils.testTheName(act_path, "npy")
+
+    rat_name = "ratio"
+    rat_path = folder + rat_name
+    rat_path = utils.testTheName(rat_path, "npy")
+
+    ### Save Array ###
+    np.save(pred_path, predic)
+    np.save(act_path, activity)
+    np.save(rat_path, ratio)
+
+    ### Get System Info ###
+    if not info:
+        info = numParam()
+    if not toDo:
+        toDo = doParam()[1]
+    paramX = ["doThresh"]
+    for param in paramX:
+        if param in toDo:
+            info[param] = toDo[param]
+
+    ### Save Comment and System Info
+    f = open(info_path,"w")
+    f.write(string)
+    f.write("\n")
+    for key, val in info.items():
+        f.write(key+ ", ")
+        f.write(str(val)+ "\n")
+    f.close()
+
+
 def test_the_machine():
+    def warnMe(jEE, extE, warn_me):
+        print("this is the warning at: ", end="")
+        print(extE, end=", ")
+        print(jEE)
+        print(warn_me[-1].category)
+        print(warn_me[-1].message)
     ### Turn Off Printing
     plots.print_GLOBAL = 0
     global print_GLOBAL
@@ -353,32 +447,43 @@ def test_the_machine():
     nn.print_GLOBAL = 0
 
     repetitions = 5
+    dist = 8
     range_extE = np.linspace(0.75, 1.2, 6)
-    range_jEE = np.linspace(.9, 1.6, 12)
+    range_jEE = np.linspace(.9, 1.4, 12)
 
     timestart = time.time()
     readout_OT = []
+    overall_OT = []
+    ratio_OT = []
     record_warnings = []
     with warnings.catch_warnings(record=True) as warn_me:
         last_warn = 0
         for _ in range(repetitions):
-            readout = []
+            predic_readout = []
+            overall_readout = []
+            ratio_readout = []
             for extE in range_extE:
                 for jEE in range_jEE:
                     print(f"jEE: {np.round(jEE,2)}, extE: {np.round(extE,2)}")
-                    readout.append([jEE, extE, *Machine(jEE, extE)])
-                    if warn_me and warn_me != last_warn:
-                        print("this is the warning at: ", end="")
-                        print(extE, end=", ")
-                        print(jEE)
+                    predic, overall, ratio = Machine(jEE, extE, dist)
+                    predic_readout.append([jEE, extE, *predic])
+                    overall_readout.append([jEE, extE, overall])
+                    ratio_readout.append([jEE, extE, ratio])
+                    if warn_me and warn_me[-1] != last_warn:
                         record_warnings.append(warn_me[-1])
-                        print(warn_me[-1].category)
-                        print(warn_me[-1].message)
-            readout_OT.append(readout)
+                        last_warn = warn_me[-1]
+                        warnMe(jEE, extE, warn_me)
+            readout_OT.append(predic_readout)
+            overall_OT.append(overall_readout)
+            ratio_OT.append(ratio_readout)
+
     print(record_warnings)
-    name_file = "test_the_machine_"+time.strftime("%m%d")
-    name_file = utils.testTheName(name_file)
-    np.save(name_file,readout_OT)
+    string = ("Axis 0: Repeat under same Conditions\n"+
+              "Axis 1: Differing Conditions\n"+
+              "Axis 2: j_EE, ext_E, delay= 0-"+str(dist))
+    cust_save("vary_jEE_extE_", readout_OT,overall_OT, ratio_OT, string)
+    # cust_save("overall_active_jEE_extE_", overall_OT, string)
+    # cust_save("ratio_jEE_extE_", ratio_OT, string)
     timeend = time.time()
     utils.timeOut(timeend - timestart)
 
@@ -397,7 +502,7 @@ def setupFolder():
 
 def numParam():
     """
-    Sets all parameters relevant to the simulation    
+    Sets all parameters relevant to the simulation
 
     For historic reasons also sets the folder where figures and data are saved
     """
@@ -412,7 +517,8 @@ def numParam():
     tau             = 0.9
     meanExt         = 0.1
     meanStartActi   = meanExt
-    recNum          = 1
+    recNum          = 100
+    display_count   = 1
     ### Most changed vars ###
     timer           = 220
     K               = 1000
@@ -420,7 +526,7 @@ def numParam():
     sizeM           = np.array([size,size])
 
     info = locals()
-    info["meanExt_M"] = [.1, .3]
+    info["meanExt_M"] = np.array([.1, .3])
     # info["GUI"] = 0
     info.pop("size")
     return info
@@ -434,8 +540,8 @@ def doParam():
     pIndiExt    = 1
     nDistri     = 1
     newMeanOT   = 1
-    nInter      = 0
-    nInter_log  = 0
+    nInter      = 1
+    nInter_log  = 1 
     dots2       = 1
     drw = locals()
     
@@ -451,17 +557,17 @@ def doParam():
     plots.showPlots_GLOBAL  = 0
     return drw, toDo
 
-def useless(*args):
-    pass
-    
-def check_plt():
-    plt.figure()
+def test_list(x):
+    if isinstance(x,list):
+        return test_list(x[0]) + 1
+    else:
+        return 0
+
 if __name__ == "__main__":
-    check_plt()
     # changeExt_()   
     # changeThresh_()
-    # Vanilla()
-    test_the_machine()
+    Vanilla()
+    # test_the_machine()
     # Machine()
     pass
 

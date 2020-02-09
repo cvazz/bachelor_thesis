@@ -70,16 +70,14 @@ def regr(func, x, y):
 ###############################################################################
 
 
-def indiExtended(indiNeuronsDetailed, threshM, recNum):
+def indiExtended(indiNeuronsDetailed, threshM, recNum, flip=0):
     captiontxt = captiontxt_GLOBAL
-    showRange = recNum
+    maxLen = len(indiNeuronsDetailed)
+    showRange = recNum if maxLen > recNum else maxLen
+    if flip:
+        indiNeuronsDetailed = np.flip(indiNeuronsDetailed)
     exORin = 0
     level = 0
-    """
-    fig, axarr  = plt.subplots(2,sharex=True,)
-    ax1         = axarr[0]
-    ax2         = axarr[1]
-    """
     fig = plt.figure(constrained_layout=False, )#figsize = (10,10))
     h_ratio = 10-showRange/2 if 10-showRange/2>2 else 2
     gs  = fig.add_gridspec(ncols=1, nrows=2, height_ratios=[h_ratio,1])
