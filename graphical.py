@@ -69,6 +69,8 @@ name_dict = {
     "size":         "Size",        
     "K":            "Connection Value K",
     "timer":        "Time",
+    "j_EE":         "Weight J_EE",
+    "j_EI":         "Weight J_EI",
     "jE":           "Weight J_IE",
     "jI":           "Weight J_II",
     "tau":          "Relative Update time Tau ",
@@ -92,6 +94,8 @@ desc_dict = {
     "size":         "Size of each cluster of neurons, excitatory and inhibitory",        
     "K":            "Connection Value K",
     "timer":        "Number of runs",
+    "j_EE":         "Weight for Excitatory to Excitatory Neurons J_EE",
+    "j_EI":         "Weight for Excitatory to Inhibitory Neurons J_EI",
     "jE":           "Weight for Inhibitory to Excitatory Neurons J_IE",
     "jI":           "Weight for Inhibitory to Inhibitory Neurons J_II",
     "tau":          "Average time to ",
@@ -159,6 +163,11 @@ class ValueUnit(QHBoxLayout):
         self.addWidget(self.numbox)
         self.addWidget(self.slider)
     
+    def clickable(self, clickability):
+        self.numbox.setEnabled(clickability)
+        self.slider.setEnabled(clickability)
+
+
 class MiniUnit(QHBoxLayout):
     @pyqtSlot(int)
     def numChange(self,val):
@@ -181,6 +190,9 @@ class MiniUnit(QHBoxLayout):
 
         self.addWidget(self.label)
         self.addWidget(self.numbox)
+        
+    def clickable(self, clickability):
+        self.numbox.setEnabled(clickability)
 
 def initQt(name):
     lbl_txt     = name_dict[name]
@@ -197,36 +209,40 @@ class Haken(QHBoxLayout):
         super(QHBoxLayout, self).__init__(*args, **kwargs)
 
         self.name, self.label = initQt(name)
-        check  = QCheckBox()
-        check.setChecked(default)
+        self.check  = QCheckBox()
+        self.check.setChecked(default)
         self.val = default
-        check.stateChanged.connect(lambda:self.choice(check))
+        self.check.stateChanged.connect(lambda:self.choice(check))
 
         self.addWidget(self.label)
-        self.addWidget(check)
+        self.addWidget(self.check)
 
     def choice(self, box):
         self.val = box.isChecked()
         print(self.val)
+    def clickable(self, clickability):
+        self.check.setEnabled(clickability)
 
 class Dropdown(QHBoxLayout):
     def __init__(self,name = "Eat Healthy", strings = ["Missing",], *args, **kwargs):
         super(QHBoxLayout, self).__init__(*args, **kwargs)
 
         self.name, self.label = initQt(name)
-        dropThresh  = QComboBox()
+        self.dropThresh  = QComboBox()
         for string in strings:
-            dropThresh.addItem(string)
+            self.dropThresh.addItem(string)
         default = strings[0]
         self.val = default
-        dropThresh.activated[str].connect(self.choice)
+        self.dropThresh.activated[str].connect(self.choice)
 
         self.addWidget(self.label)
-        self.addWidget(dropThresh)
+        self.addWidget(self.dropThresh)
 
     def choice(self, text):
         self.val = text
         print(self.val)
+    def clickable(self, clickability):
+        self.dropThresh.setEnabled(clickability)
 class InputLayout(QVBoxLayout):
 
     range_dict = {
@@ -234,6 +250,8 @@ class InputLayout(QVBoxLayout):
         "size":             [100,20000, 1000],
         "K":                [10, 10000, 1000],
         "timer":            [1, 1000, 100],
+        "j_EE":             [0, 5, 1],
+        "j_EI":             [0, 5, 1],
         "jE":               [0, 5, 2],
         "jI":               [0, 5, 1.8],
         "tau":              [0, 5, 0.9],
@@ -245,7 +263,7 @@ class InputLayout(QVBoxLayout):
         "meanExt":          [0, 1, .1],
     }
     drop_dict = {
-        "doThresh":     ["bounded", "constant", "gaussian"],
+        "doThresh":     ["constant", "bounded", "gaussian"],
         "doUpdating":   ["stochastic","deterministic"]
     }
     drw_dict = {
@@ -256,8 +274,11 @@ class InputLayout(QVBoxLayout):
     "nInter_log":       1,
     "dots2":            1,
     }
+
     load_message= pyqtSignal()
     do_calc   = pyqtSignal(dict,dict,dict)
+    clickable_sig = pyqtSignal(bool)
+
     def __init__(self, *args, **kwargs):
         super(QVBoxLayout, self).__init__(*args, **kwargs)
 
@@ -265,19 +286,24 @@ class InputLayout(QVBoxLayout):
             if val[1]>10:   layout  = ValueUnit(key,*val)
             else:           layout  = MiniUnit (key,*val)
             layout.setObjectName("inp_%s" %key)
+            self.clickable_sig.connect(layout.clickable)
             self.addLayout(layout)
         for key,txt in self.drop_dict.items():
             drop = Dropdown(key,txt)
             drop.setObjectName("inp_%s" %key)
+            self.clickable_sig.connect(drop.clickable)
             self.addLayout(drop)
         for key,default in self.drw_dict.items():
             check = Haken(key,default)
             check.setObjectName("inp_%s" %key)
+            self.clickable_sig.connect(check.clickable)
             self.addLayout(check)
 
         exec_button = QPushButton("Run")
         exec_button.clicked.connect(self.emit_load)
+        self.clickable_sig.connect(lambda x: exec_button.setEnabled(x))
         exec_button.clicked.connect(self.run)
+
         self.addWidget(exec_button, alignment = Qt.AlignRight)
 
     def make_toDo(self,items):
@@ -319,8 +345,17 @@ class InputLayout(QVBoxLayout):
         info['extM'] = np.array([info.pop('extE'),info.pop('extI')])
         info['threshM'] = np.array([info.pop('threshE'),info.pop('threshI')])
         info['sizeM'] = np.array([info['size'],info.pop('size')])
-        info["j_EE"], info["j_EI"] = 1,1
+        if "j_EE" not in info:
+            info["j_EE"] = 1
+        if "j_EI" not in info:
+            info["j_EI"] = 1
+        info["display_count"]  = 1
         return info
+    @pyqtSlot()
+    def set_unclickable(self):
+        self.clickable_sig.emit(False)    
+    def set_clickable(self):
+        self.clickable_sig.emit(True)    
 
     @pyqtSlot()
     def emit_load(self):
@@ -340,7 +375,6 @@ class InputLayout(QVBoxLayout):
     #     }
 
     #     self.do_calc.emit(folder,drw)    
-
     def run(self):
         # self.emit_load()
 
@@ -379,6 +413,9 @@ graphic_loc = {
     "dots2":            "dots2.png",
 }
 class Displayer(QVBoxLayout):
+    disp_sig = pyqtSignal(int)
+    click_sig = pyqtSignal(bool)
+    unclick_sig = pyqtSignal(bool)
     def __init__(self, *args, **kwargs):
         super(QVBoxLayout, self).__init__(*args, **kwargs)
         loc ="Start.jpg"
@@ -386,6 +423,9 @@ class Displayer(QVBoxLayout):
         img = QPixmap(loc)
         scaled_img = img.scaled(self.graphic.size(), Qt.KeepAspectRatio)
         self.graphic.setPixmap(scaled_img)
+        self.graphic.setText("            Please Execute the Program!           ")
+        self.graphic.setFont(QFont('SansSerif', 33))
+        # self.graphic.setWidth(600)
 
         self.select_img  = QComboBox()
         self.select_img.addItem("Run the program please")
@@ -396,9 +436,16 @@ class Displayer(QVBoxLayout):
 
         self.button = QPushButton("click")
         self.button.clicked.connect(self.update_test)
-        self.addWidget(self.graphic)
+        self.button2 = QPushButton("pause")
+        self.button2.clicked.connect(self.stop_test)
+        self.graphic.resize(900,600)
+        # self.graphic.setVisible(False)
+        
+
+        self.addWidget(self.graphic, Qt.AlignCenter)
         self.addWidget(self.select_img)
         self.addWidget(self.button)
+        self.addWidget(self.button2)
 
 
     def update_test(self,*args):
@@ -412,67 +459,86 @@ class Displayer(QVBoxLayout):
         "nInter_log":       1,
         "dots2":            1,
         }
+        self.run_thread = RunThread()
+        # self.disp_sig.connect(self.run_thread.on_source)
+        # self.disp_sig.emit(lineftxt)
+        self.graphic.setText("please wait")
+        self.run_thread.start()
+        self.run_thread.thread_sig.connect(self.on_info)
+        self.button.setEnabled(False)
         # self.test(self, folder, drw)
-        self.update(False, drw, folder)
+        # self.update(False, drw, folder)
+    def on_info(self, inp):
+        if "prepare" in inp:
+            self.graphic.setText("               Preparing Calculations...          ")
+        elif "%" in inp:
+            self.graphic.setText("               Loading: {}                        ".format(inp))
+        elif "plot" in inp:
+            self.graphic.setText("               Plotting Results...                ")
+        elif "interrupt" in inp:
+            self.graphic.setText("               Stop of Calculations...          ")
+            self.click_sig.emit(True)
+        elif "finish" in inp:
+            ### Choose Items for dropdown ###
+            drw = self.drw
+            info = self.info
+            self.select_img.clear()
+            available = []
+            for key,value in drw.items():
+                if value:
+                    available.append(key)
+            ### Insert Items to Dropdown
+            self.select_img.setEnabled(True)
+            self.folder = info['figfolder']
+            for name in available:
+                string = g_dict[name]
+                self.select_img.addItem(string)
+            ### Display First Image
+            print(available)
+            self.change_img(available[0])
+            self.click_sig.emit(True)
+        else:
+            raise NameError("Invalid Code Emitted")
+
+
+
+    def stop_test(self, *args):
+        print(self.thread.running)
+        self.thread.running = False
+        # self.thread_sig.emit()
+        self.button.setEnabled(True)
 
     @pyqtSlot()
     def loading(self,*args):
-        print(args)
-        # self.select_img.setEnabled(False)
-        loc = "foto.jpg"
-        print("issue maybe because of QAutoConnection, QueuedConnection")
-        img = QPixmap(loc)
-        scaled_img = img.scaled(self.graphic.size(), Qt.KeepAspectRatio)
-        self.graphic.setPixmap(scaled_img)
-
-
+        pass
 
     @pyqtSlot(dict,dict,dict)
-    def update(self, info,drw,toDo,*args):
-        loc = "wait.jpg"
-        img = QPixmap(loc)
-        scaled_img = img.scaled(self.graphic.size(), Qt.KeepAspectRatio)
-        self.graphic.setPixmap(scaled_img)
-        if info: 
-            print("by hand: switch")
-            toDo["switch"]      = 0
-            info['meanExt_M']   = [info["meanExt"], "error"]
+    def update(self, info,drw,toDo):
+        self.unclick_sig.emit(False)
+        self.drw = drw
+        self.info = info
+        print("by hand: switch")
+        toDo["switch"]      = 0
+        info['meanExt_M']   = [info["meanExt"], "error"]
 
-            ### Main ###
+        ### Main ###
 
-            plots.savefig_GLOBAL    = 1
-            plots.showPlots_GLOBAL  = 0
+        plots.savefig_GLOBAL    = 1
+        plots.showPlots_GLOBAL  = 0
 
-            ### Create constant inputs to function
-            jCon = nn.createjCon(info)
-            external = nn.createExt(info["sizeM"],info["extM"], info["K"], info["meanExt"])     
-            thresh = nn.createThresh(info["sizeM"], info["threshM"], toDo["doThresh"])
-            
-            #valueFolder = describe(toDo, info,0) 
-            (indiNeuronsDetailed,   
-                    activeOT, fireOT, nval0
-            ) = nn.run_box( jCon, thresh, external, info, toDo,)
+        ### Create constant inputs to function
+        jCon = nn.createjCon(info)
+        external = nn.createExt(info)     
+        thresh = nn.createThresh(info["sizeM"], info["threshM"], toDo["doThresh"])
+        
+        self.thread = RunThread(jCon, thresh, external, info, toDo, drw)
+        self.thread.start()
+        self.disp_sig.connect(self.thread.stop_running)
+        self.thread.thread_sig.connect(self.on_info)
 
-            nn.plot_machine(
-                activeOT, fireOT, indiNeuronsDetailed,
-                info, drw, toDo)
-        ### End Main ### 
-        ### Choose Items for dropdown ###
-        self.select_img.clear()
-        available = []
-        for key,value in drw.items():
-            if value:
-                available.append(key)
-        ### Insert Items to Dropdown
-        self.select_img.setEnabled(True)
-        self.folder = info['figfolder']
-        for name in available:
-            string = g_dict[name]
-            self.select_img.addItem(string)
-        ### Display First Image
-        # self.change_img(available[0])
 
     def change_img(self,text,*args):
+        code_name = text
         for key,val in g_dict.items():
             if val == text:
                 code_name = key
@@ -482,6 +548,7 @@ class Displayer(QVBoxLayout):
         img = QPixmap(loc)
         scaled_img = img.scaled(self.graphic.size(), Qt.KeepAspectRatio)
         self.graphic.setPixmap(scaled_img)
+        # self.graphic.setText("please wait")
         # """
         # Ausslagern in eigene Klasse von img_layout
         # Dropdown
@@ -498,7 +565,79 @@ class waitalog(QDialog):
         self.addWidget(self.label)
         self.addWidget(self.button)
 
+class RunThread(QThread):
+    thread_sig = pyqtSignal(str)
 
+    def __init__(self, jCon, thresh, external, info, toDo, drw, parent=None):
+        QThread.__init__(self, parent)
+        self.jCon       = jCon   
+        self.thresh     = thresh
+        self.external   = external
+        self.info       = info
+        self.toDo       = toDo
+        self.drw        = drw
+        self.running = False 
+    def stop_running():
+        self.running = False 
+
+    def run(self):
+        self.thread_sig.emit("prepare")
+        jCon       = self.jCon   
+        thresh     = self.thresh
+        external   = self.external
+        info       = self.info
+        toDo       = self.toDo
+        drw        = self.drw
+        self.count = 0
+        self.running = True 
+        hn = nn.setup(jCon, thresh, external, info, toDo)
+        print_steps = .05
+        print_count = print_steps * hn.maxTime
+        while hn.comb_Big_Time[0] < hn.maxTime:
+            inhibite = nn.inside_loop(hn)
+            ### Checks whether to update external input function ###
+            # 1. Did label change compared to last run, 2. is Switch Active,
+            # 3. Is this an excitatory process? 4. Is this the last run already?
+            if (hn.switch and inhibite == 0 and hn.comb_Big_Time[0] < hn.maxTime and
+                not (hn.labels[hn.comb_Big_Time[0]] == hn.labels[hn.comb_Big_Time[0]-1])):  
+                # Update External Input
+                external = createExt(info, meanExt_M[labels[comb_Big_Time[0]]])
+
+            ### Print ### 
+            # if comb_Big_Time[0] % 10 == 0 and not inhibite and print_GLOBAL:
+            #     print(f"{(comb_Big_Time[0]/maxTime):.0%}", end=", ", flush=True)
+            #     # if GUI:
+            if hn.comb_Big_Time[0] >= print_count and not inhibite:
+                while hn.comb_Big_Time[0] >= print_count:
+                    perc = int((print_count/hn.maxTime)*100)
+                    self.thread_sig.emit(str(perc) + '%')
+                    # print(str(perc) + '%')
+                    print_count+=print_steps*hn.maxTime
+                # print(f"{(comb_Big_Time[0]/maxTime):.0%}", end=", ", flush=True)
+
+            if not self.running:
+                self.thread_sig.emit("interrupt")
+                return
+        self.thread_sig.emit("plot")
+        if self.running:
+            plots.plot_center(
+                hn.activeOT, hn.fireOT, hn.indiNeuronsDetailed,
+                info, drw, toDo)
+        self.running = False 
+        self.thread_sig.emit("finish")
+        
+
+# class SenderObject(QC.QObject):
+#     test_sig = QC.pyqtSignal(int)
+
+# class xyz():
+#     def __init__(self,):
+#         self.sender = SenderObject()
+
+#     def test(self,count):
+#         for i in range(100):
+#             self.sender.test_sig.emit(i)
+#             time.sleep(1)
 
 class MainWindow(QMainWindow):
 
@@ -508,14 +647,17 @@ class MainWindow(QMainWindow):
         self.inputLayout = InputLayout()
         
         self.principal = QHBoxLayout()
-        self.principal.addLayout(self.inputLayout )
+        self.principal.addLayout(self.inputLayout,1)
 
         self.img_layout = Displayer()
-        self.principal.addLayout(self.img_layout)
+        self.principal.addLayout(self.img_layout,2)
         # self.principal.addWidget(self.label)
         widget = QWidget()
         widget.setLayout(self.principal)
         self.inputLayout.load_message.connect(self.img_layout.loading,Qt.DirectConnection)
+        # self.inputLayout.set_unclickable.connect(self.img_layout.unclick_sig)
+        self.img_layout.unclick_sig.connect(self.inputLayout.set_unclickable)
+        self.img_layout.click_sig.connect(self.inputLayout.set_clickable)
 
         self.inputLayout.do_calc.connect(self.img_layout.update)
         self.setCentralWidget(widget)
@@ -526,7 +668,7 @@ if __name__ == "__main__":
     # window = waitalog()
     window.show()
     app.exec_()
-
+# 
 # """
 # Bild auf rechte Seite
 # Freeze while processing

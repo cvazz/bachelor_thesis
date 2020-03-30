@@ -9,6 +9,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from scipy import special
 import scipy.integrate as integrate
+import scipy.optimize as opti
 
 
 
@@ -153,7 +154,7 @@ def task3():
     sizeE   = 10000
     sizeI   = 10000
     extE    = 1
-    extI    = 0.8
+    extI    = 0.7
     jE      = 2
     jI      = 1.8
     threshE = 1
@@ -207,18 +208,117 @@ def task6():
     sizeE   = 10000
     sizeI   = 10000
     extE    = 1
-    extI    = 0.8
+    extI    = 0.7
     jE      = 2
     jI      = 1.8
     threshE = 1
     threshI = 0.7
-    tau =0.9
+    tau     = 0.9
     do6(K,mean0,tau, sizeE, sizeI, extE, extI, jE, jI, threshE, threshI)
 
+
+
+def mM_func(m0, inf, printit):
+    mean0 = 0.1
+    extE    = 1
+    extI    = 0.7
+    jE      = 2
+    jI      = 1.8
+    threshE = 1
+    threshI = 0.7
+
+    extM    = [extE, extI]
+    threshM = [threshE, threshI]
+    jM      = [jE, jI]
+    K       = 1000
+
+    act = 0
+    ota = 1 - act
+
+    if printit:
+        print("m0")
+        print(m0)
+    A_E=  (extE*jI - extI*jE)/(jE-jI)
+    A_I=  (extE - extI)/(jE-jI)
+    mE =  (extE*jI - extI*jE)/(jE-jI) * m0
+    mI =  (extE - extI)/(jE-jI) *m0
+    mM = [mE, mI]
+    if inf:
+        return np.array([mE, mI])
+    if printit:
+        print("mM")
+        print(mM)
+    alphaM = [mE+jM[i]**2*mI for i in range(2)]
+    if printit:
+        print("alphaM")
+        print(alphaM)
+    hM = [-2*(np.log(m)) for m in mM]
+    if printit:
+        print("hM")
+        print(hM)
+    cM = [(threshM[i] + np.sqrt(alphaM[i])*hM[i])/np.sqrt(K) for i in range(2)]
+    if printit:
+        print("cM")
+        print(cM)
+    adeE = (jE*cM[1] -jI*cM[0])/(jE-jI)
+    adeI = (cM[1] - cM[0])/(jE-jI)
+    adeM = [adeE, adeI]
+    if printit:
+        print("add")
+        print(adeM)
+    mE = mE - (jE*cM[1] -jI*cM[0])/(jE-jI)
+    mI = mI - (cM[1] - cM[0])/(jE-jI)
+    # mE = mE - 0.02 *A_E- 0.2*m0
+    # mI = mI - 0.02 *A_I - 0.2*m0
+    try:
+        mI = mI if mI>0 else 0
+        mE = mE if mE>0 else 0
+    except ValueError:
+        mI = [m_I if m_I>0 else 0 for m_I in mI]
+        mE = [m_E if m_E>0 else 0 for m_E in mE]
+    return np.array([mE, mI])
+
+def simpE(mE):
+    m0      = 0.1
+    extE    = 1
+    extI    = 0.7
+    jE      = 2
+    jI      = 1.8
+def numsolve():
+
+    # # Plot it
+
+    m0 = .2
+    print( mM_func(m0,0,1))
+    m0 = np.linspace(.0, .3, 51)
+    mM = mM_func(m0, 1, 0)
+    labM = ['mE_inf',"mI_inf"]
+    [plt.plot(m0,m, label=lab) for m,lab in zip(mM,labM)]
+
+    mM = mM_func(m0, 0, 0)
+    labM = ['mE_1000',"mI_1000"]
+    [plt.plot(m0,m, label=lab) for m,lab in zip(mM,labM)]
+    plt.xlabel("m0")
+    plt.ylabel("expression value")
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+    # Use the numerical solver to find the roots
+
+    # print(mM_func(*tau_initial_guess))
+    # tau_solution = opti.fsolve(mM_func , tau_initial_guess)
+    # tau_solution = opti.fsolve(simpE , 1)
+    # print(tau_solution)
+    
+
+
+
 def main():
-    task3()
+    # task3()
     # task6()
     #testRoutine()
+    numsolve()
 
 
 if __name__ == "__main__":
